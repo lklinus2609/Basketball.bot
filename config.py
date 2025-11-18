@@ -78,26 +78,35 @@ FLYWHEEL_RADIUS_MM = 20.0         # 40mm diameter / 2
 # ============================================================================
 # LOCALIZATION PARAMETERS
 # ============================================================================
-# Target shooting distance (inches from backboard)
-OPTIMAL_SHOOTING_DISTANCE = 36    # Sweet spot for accuracy
+# Arena dimensions (from competition specs)
+ARENA_WIDTH = 72.0                # inches (6 feet)
+ARENA_LENGTH = 72.0               # inches (6 feet)
 
-# Distance tolerance for positioning
-DISTANCE_TOLERANCE = 3            # ±3 inches is acceptable
+# Basket positions (all at x = ARENA_LENGTH, on centerline/backboard)
+BASKET_POSITIONS = {
+    'LEFT': (72.0, 15.0),         # (x, y) in inches
+    'CENTER': (72.0, 36.0),       # Center of arena
+    'RIGHT': (72.0, 57.0)         # 72 - 15 = 57
+}
 
 # Rotation speed for scanning (0-255)
 ROTATION_SPEED = 100              # Slow rotation for scanning
 
-# Drive speed for positioning (0-255)
-DRIVE_SPEED_SLOW = 80             # Slow approach
-DRIVE_SPEED_FAST = 150            # Quick repositioning
-
 # Scan parameters
-SCAN_SAMPLES = 36                 # Take 36 samples during 360° rotation
-SCAN_DELAY_MS = 100               # Delay between samples
+SCAN_SAMPLES = 72                 # More samples for better wall detection (5° resolution)
+SCAN_DELAY_MS = 50                # Faster scanning (50ms × 72 = 3.6s total)
 
 # Wall detection threshold
 MIN_VALID_DISTANCE = 12           # Minimum valid distance (inches)
-MAX_VALID_DISTANCE = 72           # Maximum valid distance (inches)
+MAX_VALID_DISTANCE = 80           # Maximum valid distance (inches)
+
+# Position calculation
+USE_TRIANGULATION = True          # Calculate position from 4 walls instead of driving
+STAY_IN_PLACE = True              # Don't drive - just rotate to align
+
+# Shooting strategy
+RETURN_TO_CENTER_AFTER_SHOT = True  # Return lazy susan to 0° after each shot
+                                     # Ensures consistent ready position
 
 # ============================================================================
 # SENSOR PARAMETERS

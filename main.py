@@ -64,6 +64,30 @@ class BasketballRobot:
     def run(self):
         """Main run loop"""
         self.running = True
+
+        # Wait for user to start the game
+        print("\n" + "="*60)
+        print("READY TO START")
+        print("="*60)
+        print("\nPlace robot in starting zone, then press ENTER to begin...")
+        print("(or type 'q' to quit)\n")
+
+        try:
+            user_input = input(">>> ").strip().lower()
+            if user_input == 'q':
+                print("[MAIN] Cancelled by user")
+                self.stop()
+                return
+        except KeyboardInterrupt:
+            print("\n[MAIN] Cancelled by user")
+            self.stop()
+            return
+
+        print("\n" + "="*60)
+        print("STARTING AUTONOMOUS SEQUENCE!")
+        print("="*60 + "\n")
+
+        # Now start the state machine
         self.state_machine.start()
 
         print("[MAIN] Starting main loop...")
