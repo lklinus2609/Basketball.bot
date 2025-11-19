@@ -128,10 +128,12 @@ uint16_t StepperAndSensors::readUltrasonic() {
 
 void StepperAndSensors::setDrive(int8_t left_speed, int8_t right_speed) {
     // Using AStar32U4Motors library
-    // Speed range: -400 to 400
-    // Convert from -127/127 to -400/400 range
-    int16_t left_motor = map(left_speed, -127, 127, -400, 400);
-    int16_t right_motor = map(right_speed, -127, 127, -400, 400);
+    // Library range: -400 to 400, but we limit to reasonable speed
+    // Python sends -127 to 127 range (signed byte)
+
+    // Clamp to max speed of 150 (safe speed based on IRmove test using 75)
+    int16_t left_motor = constrain(left_speed, -150, 150);
+    int16_t right_motor = constrain(right_speed, -150, 150);
 
     // M1 = Right motor, M2 = Left motor (typical A-Star configuration)
     drive_motors.setM1Speed(right_motor);

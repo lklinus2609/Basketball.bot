@@ -291,6 +291,11 @@ class AStarCommunication:
         """Check if flywheels are at target speed"""
         current = (self.telemetry['flywheel_rpm_left'] +
                    self.telemetry['flywheel_rpm_right']) / 2
+
+        # Avoid division by zero when target_rpm is 0
+        if target_rpm == 0:
+            return current < 100  # Consider ready if stopped (< 100 RPM)
+
         error_percent = abs(current - target_rpm) / target_rpm * 100
         return error_percent < tolerance_percent
 
