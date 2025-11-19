@@ -6,7 +6,7 @@ All tunable parameters in one place for easy adjustment
 # ============================================================================
 # COMMUNICATION SETTINGS
 # ============================================================================
-SERIAL_PORT = '/dev/ttyAMA0'  # RPI GPIO serial port (adjust if using USB)
+SERIAL_PORT = '/dev/ttyACM0'  # USB serial port for A-Star connection
 BAUD_RATE = 115200
 SERIAL_TIMEOUT = 0.01  # Non-blocking with minimal timeout
 
