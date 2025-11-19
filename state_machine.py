@@ -182,7 +182,7 @@ class BasketballRobotStateMachine:
         # Wait for initial commands to be processed
         if self.time_in_state() > 500:  # 500ms startup delay
             if DEBUG_MODE:
-                print("[STATE] Initialization complete")
+                print("[STATE] Initialization complete - starting localization")
             self.transition_to(State.SEEK_AND_ORIENT)
 
     def _state_seek_and_orient(self):

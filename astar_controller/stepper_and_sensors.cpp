@@ -40,7 +40,9 @@ void StepperAndSensors::begin() {
     loader.setAcceleration(LOADER_ACCELERATION);
     loader.setCurrentPosition(0);
 
-    // Drive motors initialized automatically by AStar32U4Motors library
+    // Initialize drive motors to STOPPED
+    drive_motors.setM1Speed(0);
+    drive_motors.setM2Speed(0);
 
     // Setup IR sensors (only 2 sensors)
     pinMode(IR_SENSOR_LEFT, INPUT);
