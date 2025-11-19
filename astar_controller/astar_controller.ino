@@ -122,6 +122,11 @@ void handleCommand(CommandData& cmd) {
 
         case CMD_SET_DRIVE:
             steppers_sensors.setDrive(cmd.drive_left, cmd.drive_right);
+            #if DEBUG_MODE
+            char msg[32];
+            sprintf(msg, "Drive: L=%d R=%d", cmd.drive_left, cmd.drive_right);
+            comm.sendDebugMessage(msg);
+            #endif
             break;
 
         case CMD_RESET:

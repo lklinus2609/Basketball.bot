@@ -40,7 +40,10 @@ void StepperAndSensors::begin() {
     loader.setAcceleration(LOADER_ACCELERATION);
     loader.setCurrentPosition(0);
 
-    // Initialize drive motors to STOPPED
+    // Initialize drive motors to STOPPED (critical - set multiple times to ensure)
+    drive_motors.setM1Speed(0);
+    drive_motors.setM2Speed(0);
+    delay(10);  // Small delay to ensure motor driver receives command
     drive_motors.setM1Speed(0);
     drive_motors.setM2Speed(0);
 
