@@ -26,8 +26,8 @@ public:
     uint8_t readIR_Right();
     uint16_t readUltrasonic();
 
-    // Drive wheel control
-    void setDrive(int8_t left_speed, int8_t right_speed);
+    // Drive wheel control (supports full -400 to +400 motor range)
+    void setDrive(int16_t left_speed, int16_t right_speed);
 
 private:
     bool loader_ready;

@@ -11,8 +11,8 @@ struct CommandData {
     uint8_t type;
     uint16_t flywheel_rpm;
     float lazy_susan_angle;
-    int8_t drive_left;
-    int8_t drive_right;
+    int16_t drive_left;   // 16-bit: supports full -400 to +400 motor range
+    int16_t drive_right;  // 16-bit: supports full -400 to +400 motor range
 };
 
 class Communication {

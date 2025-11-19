@@ -89,8 +89,8 @@ BASKET_POSITIONS = {
     'RIGHT': (72.0, 57.0)         # 72 - 15 = 57
 }
 
-# Rotation speed for scanning (0-150 motor range)
-ROTATION_SPEED = 130              # Rotation speed for localization scan
+# Rotation speed for scanning (max 127 due to signed byte limit)
+ROTATION_SPEED = 127              # Rotation speed for localization scan (max signed byte)
 
 # Scan parameters
 SCAN_SAMPLES = 72                 # More samples for better wall detection (5° resolution)

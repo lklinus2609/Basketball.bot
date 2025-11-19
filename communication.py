@@ -152,10 +152,12 @@ class AStarCommunication:
         Set drive wheel speeds
 
         Args:
-            left_speed: Left wheel speed (-255 to +255)
-            right_speed: Right wheel speed (-255 to +255)
+            left_speed: Left wheel speed (-400 to +400)
+            right_speed: Right wheel speed (-400 to +400)
         """
-        data = struct.pack('<bb', int(left_speed), int(right_speed))
+        # Pack as 16-bit signed integers (allows full motor range)
+        # Arduino handles clamping to -400/+400
+        data = struct.pack('<hh', int(left_speed), int(right_speed))
         return self.send_command(CommandType.SET_DRIVE, data)
 
     def reset(self):

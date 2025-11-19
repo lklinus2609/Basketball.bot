@@ -166,9 +166,10 @@ void Communication::parsePacket(CommandData& cmd) {
             break;
 
         case CMD_SET_DRIVE:
-            if (data_len >= 2) {
-                cmd.drive_left = (int8_t)rx_buffer[3];
-                cmd.drive_right = (int8_t)rx_buffer[4];
+            if (data_len >= 4) {
+                // Read 16-bit signed integers (little-endian)
+                cmd.drive_left = ((int16_t)rx_buffer[4] << 8) | rx_buffer[3];
+                cmd.drive_right = ((int16_t)rx_buffer[6] << 8) | rx_buffer[5];
             }
             break;
 
