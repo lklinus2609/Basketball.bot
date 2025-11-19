@@ -40,12 +40,12 @@ class BasketballRobot:
             print("  - Serial connection (USB/UART)")
             sys.exit(1)
 
-        print("[INIT] ✓ Connected to A-Star")
+        print("[INIT] OK Connected to A-Star")
 
         # Initialize state machine
         print("[INIT] Initializing state machine...")
         self.state_machine = BasketballRobotStateMachine(self.comm)
-        print("[INIT] ✓ State machine ready")
+        print("[INIT] OK State machine ready")
 
         # Setup signal handler for clean shutdown
         signal.signal(signal.SIGINT, self._signal_handler)

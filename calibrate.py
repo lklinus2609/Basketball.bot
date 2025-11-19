@@ -33,7 +33,7 @@ def set_flywheel_rpm(comm):
         rpm = int(input("Enter target RPM (0-10000): "))
         if 0 <= rpm <= 10000:
             comm.set_flywheel_rpm(rpm)
-            print(f"✓ Set flywheel RPM to {rpm}")
+            print(f"OK Set flywheel RPM to {rpm}")
 
             # Wait and monitor
             print("Monitoring for 3 seconds...")
@@ -45,9 +45,9 @@ def set_flywheel_rpm(comm):
                     rpm_right = comm.telemetry['flywheel_rpm_right']
                     print(f"  Current: L={rpm_left} RPM, R={rpm_right} RPM")
         else:
-            print("✗ Invalid RPM (must be 0-10000)")
+            print("ERROR Invalid RPM (must be 0-10000)")
     except ValueError:
-        print("✗ Invalid input")
+        print("ERROR Invalid input")
 
 def rotate_lazy_susan(comm):
     """Manual lazy susan control"""
@@ -56,7 +56,7 @@ def rotate_lazy_susan(comm):
         angle = float(input("Enter target angle in degrees (-180 to +180): "))
         if -180 <= angle <= 180:
             comm.rotate_lazy_susan(angle)
-            print(f"✓ Rotating lazy susan to {angle}°")
+            print(f"OK Rotating lazy susan to {angle}°")
 
             # Wait and monitor
             print("Monitoring for 3 seconds...")
@@ -67,9 +67,9 @@ def rotate_lazy_susan(comm):
                     current_angle = comm.telemetry['lazy_susan_angle']
                     print(f"  Current angle: {current_angle:.1f}°")
         else:
-            print("✗ Invalid angle")
+            print("ERROR Invalid angle")
     except ValueError:
-        print("✗ Invalid input")
+        print("ERROR Invalid input")
 
 def shoot(comm):
     """Fire loading mechanism"""
@@ -77,7 +77,7 @@ def shoot(comm):
     confirm = input("Fire 90° shot? (y/n): ")
     if confirm.lower() == 'y':
         comm.shoot()
-        print("✓ SHOOT command sent!")
+        print("OK SHOOT command sent!")
         print("Monitoring for 2 seconds...")
         for i in range(10):
             comm.update()
@@ -154,7 +154,7 @@ def test_shot_sequence(comm):
         rpm = int(input("Target RPM: "))
         angle = float(input("Target angle: "))
     except ValueError:
-        print("✗ Invalid input")
+        print("ERROR Invalid input")
         return
 
     print("\n--- Executing Shot Sequence ---")
@@ -183,7 +183,7 @@ def test_shot_sequence(comm):
             stable_count += 1
 
         if stable_count > 5:  # Stable for 5 readings
-            print(f"   ✓ Stable! RPM error: {rpm_error:.1f}%, Angle error: {angle_error:.1f}°")
+            print(f"   OK Stable! RPM error: {rpm_error:.1f}%, Angle error: {angle_error:.1f}°")
             break
 
         time.sleep(0.1)
@@ -199,10 +199,10 @@ def test_shot_sequence(comm):
         comm.update()
         time.sleep(0.2)
         if comm.telemetry['loader_ready']:
-            print("   ✓ Shot complete! Loader ready.")
+            print("   OK Shot complete! Loader ready.")
             break
 
-    print("\n✓ Shot sequence complete!")
+    print("\nOK Shot sequence complete!")
 
 def measure_encoder_ppr(comm):
     """Help measure encoder PPR"""
@@ -227,7 +227,7 @@ def stop_all(comm):
     comm.set_flywheel_rpm(0)
     comm.rotate_lazy_susan(0)
     comm.set_drive(0, 0)
-    print("✓ All motors stopped")
+    print("OK All motors stopped")
 
 def main():
     """Main calibration tool"""
@@ -238,14 +238,14 @@ def main():
     comm = AStarCommunication()
 
     if not comm.connect():
-        print("\n✗ ERROR: Failed to connect to A-Star!")
+        print("\nERROR: Failed to connect to A-Star!")
         print("Check:")
         print("  - Serial port in config.py")
         print("  - A-Star is powered on")
         print("  - Correct USB/UART connection")
         sys.exit(1)
 
-    print("✓ Connected to A-Star!\n")
+    print("OK Connected to A-Star!\n")
 
     # Main loop
     try:
@@ -277,7 +277,7 @@ def main():
                 stop_all(comm)
                 break
             else:
-                print("✗ Invalid command")
+                print("ERROR Invalid command")
 
     except KeyboardInterrupt:
         print("\n\nInterrupted by user")

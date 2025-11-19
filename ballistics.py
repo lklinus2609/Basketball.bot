@@ -155,13 +155,13 @@ if __name__ == "__main__":
     for dist in test_distances:
         rpm = ballistics.get_required_rpm(dist)
         flight_time = ballistics.estimate_flight_time(dist, rpm)
-        print(f"  {dist}\" → {rpm} RPM (flight time: {flight_time:.3f}s)")
+        print(f"  {dist}\" -> {rpm} RPM (flight time: {flight_time:.3f}s)")
 
     print("\nPhysics-based RPM calculation:")
     for dist in test_distances:
         rpm = ballistics.calculate_rpm_from_physics(dist)
         if rpm:
-            print(f"  {dist}\" → {rpm} RPM (theoretical)")
+            print(f"  {dist}\" -> {rpm} RPM (theoretical)")
 
     print("\nLazy Susan Angles:")
     for basket in ['LEFT', 'CENTER', 'RIGHT']:

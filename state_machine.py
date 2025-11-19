@@ -113,7 +113,7 @@ class BasketballRobotStateMachine:
         if self.state_entry_time > 0:
             duration_ms = int((time.time() - self.state_entry_time) * 1000)
             if DEBUG_MODE:
-                print(f"[STATE] {self.state.name} → {new_state.name} ({duration_ms}ms)")
+                print(f"[STATE] {self.state.name} -> {new_state.name} ({duration_ms}ms)")
 
         self.previous_state = self.state
         self.state = new_state
@@ -297,7 +297,7 @@ class BasketballRobotStateMachine:
             self.is_localized = True
 
             if DEBUG_MODE:
-                print(f"[LOCALIZE] ✓ Localization complete! Ready to shoot.")
+                print(f"[LOCALIZE] OK Localization complete! Ready to shoot.")
 
             self.transition_to(State.HUNT_FOR_TARGET)
             return
@@ -506,7 +506,7 @@ class BasketballRobotStateMachine:
                       f"Avg: {avg_time:.0f}ms | Target: 1000ms")
 
                 if shot_duration > 1200:
-                    print("  ⚠️  WARNING: Exceeding 1-second target!")
+                    print("  WARNING: Exceeding 1-second target!")
 
             # Return to center position after shot for consistent ready state
             if RETURN_TO_CENTER_AFTER_SHOT:
