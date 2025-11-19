@@ -90,7 +90,7 @@ BASKET_POSITIONS = {
 }
 
 # Rotation speed for scanning (0-150 motor range)
-ROTATION_SPEED = 75               # Slow rotation for scanning (same as IRmove test)
+ROTATION_SPEED = 130              # Rotation speed for localization scan
 
 # Scan parameters
 SCAN_SAMPLES = 72                 # More samples for better wall detection (5° resolution)
