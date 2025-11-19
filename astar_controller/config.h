@@ -36,26 +36,17 @@
 #define LOADER_DIR              A4
 #define LOADER_ENABLE           A5
 
-// IR Sensors (TSOP34156 - active low)
-#define IR_SENSOR_LEFT          12
-#define IR_SENSOR_CENTER        13
-#define IR_SENSOR_RIGHT         14
+// IR Sensors (TSOP34156 - active low) - Only 2 sensors
+#define IR_SENSOR_LEFT          17
+#define IR_SENSOR_RIGHT         18
 
 // Ultrasonic Sensor (HC-SR04 or similar)
-#define ULTRASONIC_TRIG         15
-#define ULTRASONIC_ECHO         16
+#define ULTRASONIC_TRIG         9
+#define ULTRASONIC_ECHO         8
 
-// Drive Wheels (if using separate drive motors - adjust pins)
-// If using Romi chassis, these might be the same as flywheel pins
-// or separate motor driver channels
-#define DRIVE_LEFT_PWM          19   // Adjust if needed
-#define DRIVE_LEFT_DIR          20
-#define DRIVE_RIGHT_PWM         21
-#define DRIVE_RIGHT_DIR         22
-
-// Drive Wheel Encoders (optional)
-#define DRIVE_ENCODER_LEFT      17
-#define DRIVE_ENCODER_RIGHT     18
+// Drive Wheels - Using AStar32U4Motors library (built-in motor drivers)
+// M1 = Right motor, M2 = Left motor
+// No pin definitions needed - library handles it internally
 
 // ============================================================================
 // MOTOR CONSTANTS

@@ -21,9 +21,8 @@ public:
     void shoot();
     bool isLoaderReady();
 
-    // Sensor reading
+    // Sensor reading (only 2 IR sensors)
     uint8_t readIR_Left();
-    uint8_t readIR_Center();
     uint8_t readIR_Right();
     uint16_t readUltrasonic();
 

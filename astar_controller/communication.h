@@ -25,8 +25,8 @@ public:
     bool hasPacket();
     void parsePacket(CommandData& cmd);
 
-    // Send telemetry
-    void sendSensorData(uint8_t ir_left, uint8_t ir_center, uint8_t ir_right, uint16_t distance_cm);
+    // Send telemetry (only 2 IR sensors)
+    void sendSensorData(uint8_t ir_left, uint8_t ir_right, uint16_t distance_cm);
     void sendFlywheelStatus(uint16_t rpm_left, uint16_t rpm_right);
     void sendPositionStatus(float angle_degrees);
     void sendLoaderStatus(bool is_ready);

@@ -136,13 +136,12 @@ void handleCommand(CommandData& cmd) {
 }
 
 void sendTelemetry() {
-    // Send sensor data
+    // Send sensor data (only 2 IR sensors)
     uint8_t ir_left = steppers_sensors.readIR_Left();
-    uint8_t ir_center = steppers_sensors.readIR_Center();
     uint8_t ir_right = steppers_sensors.readIR_Right();
     uint16_t distance = steppers_sensors.readUltrasonic();
 
-    comm.sendSensorData(ir_left, ir_center, ir_right, distance);
+    comm.sendSensorData(ir_left, ir_right, distance);
 
     // Send flywheel status
     uint16_t rpm_left = flywheels.getRPM_Left();
@@ -174,8 +173,6 @@ void printDebugInfo() {
     Serial.print(steppers_sensors.isLoaderReady() ? "RDY" : "BUSY");
     Serial.print(" | IR: L=");
     Serial.print(steppers_sensors.readIR_Left());
-    Serial.print(" C=");
-    Serial.print(steppers_sensors.readIR_Center());
     Serial.print(" R=");
     Serial.print(steppers_sensors.readIR_Right());
     Serial.println();

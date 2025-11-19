@@ -1,17 +1,22 @@
 /**
  * Stepper motor control (Lazy Susan and Loader) and Sensor reading
  * Uses AccelStepper library for smooth motion
+ * Uses AStar32U4Motors for drive wheels
  */
 
 #include "stepper_and_sensors.h"
 #include "config.h"
 #include <AccelStepper.h>
+#include <AStar32U4Motors.h>
 
 StepperAndSensors steppers_sensors;
 
 // AccelStepper instances
 AccelStepper lazy_susan(AccelStepper::DRIVER, LAZY_SUSAN_STEP, LAZY_SUSAN_DIR);
 AccelStepper loader(AccelStepper::DRIVER, LOADER_STEP, LOADER_DIR);
+
+// Drive motors using built-in A-Star motor drivers
+AStar32U4Motors drive_motors;
 
 StepperAndSensors::StepperAndSensors() {
     loader_ready = true;
@@ -35,15 +40,10 @@ void StepperAndSensors::begin() {
     loader.setAcceleration(LOADER_ACCELERATION);
     loader.setCurrentPosition(0);
 
-    // Setup drive wheels (if separate from flywheels)
-    pinMode(DRIVE_LEFT_PWM, OUTPUT);
-    pinMode(DRIVE_LEFT_DIR, OUTPUT);
-    pinMode(DRIVE_RIGHT_PWM, OUTPUT);
-    pinMode(DRIVE_RIGHT_DIR, OUTPUT);
+    // Drive motors initialized automatically by AStar32U4Motors library
 
-    // Setup IR sensors
+    // Setup IR sensors (only 2 sensors)
     pinMode(IR_SENSOR_LEFT, INPUT);
-    pinMode(IR_SENSOR_CENTER, INPUT);
     pinMode(IR_SENSOR_RIGHT, INPUT);
 
     // Setup ultrasonic sensor
@@ -99,10 +99,6 @@ uint8_t StepperAndSensors::readIR_Left() {
     return digitalRead(IR_SENSOR_LEFT);
 }
 
-uint8_t StepperAndSensors::readIR_Center() {
-    return digitalRead(IR_SENSOR_CENTER);
-}
-
 uint8_t StepperAndSensors::readIR_Right() {
     return digitalRead(IR_SENSOR_RIGHT);
 }
@@ -131,21 +127,13 @@ uint16_t StepperAndSensors::readUltrasonic() {
 }
 
 void StepperAndSensors::setDrive(int8_t left_speed, int8_t right_speed) {
-    // Set left wheel
-    if (left_speed >= 0) {
-        digitalWrite(DRIVE_LEFT_DIR, HIGH);  // Forward
-        analogWrite(DRIVE_LEFT_PWM, left_speed);
-    } else {
-        digitalWrite(DRIVE_LEFT_DIR, LOW);   // Reverse
-        analogWrite(DRIVE_LEFT_PWM, -left_speed);
-    }
+    // Using AStar32U4Motors library
+    // Speed range: -400 to 400
+    // Convert from -127/127 to -400/400 range
+    int16_t left_motor = map(left_speed, -127, 127, -400, 400);
+    int16_t right_motor = map(right_speed, -127, 127, -400, 400);
 
-    // Set right wheel
-    if (right_speed >= 0) {
-        digitalWrite(DRIVE_RIGHT_DIR, HIGH);
-        analogWrite(DRIVE_RIGHT_PWM, right_speed);
-    } else {
-        digitalWrite(DRIVE_RIGHT_DIR, LOW);
-        analogWrite(DRIVE_RIGHT_PWM, -right_speed);
-    }
+    // M1 = Right motor, M2 = Left motor (typical A-Star configuration)
+    drive_motors.setM1Speed(right_motor);
+    drive_motors.setM2Speed(left_motor);
 }

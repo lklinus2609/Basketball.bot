@@ -46,15 +46,14 @@ void Communication::sendPacket(uint8_t msg_type, uint8_t* data, uint8_t data_len
     Serial.write(packet, idx);
 }
 
-void Communication::sendSensorData(uint8_t ir_left, uint8_t ir_center, uint8_t ir_right, uint16_t distance_cm) {
-    uint8_t data[5];
+void Communication::sendSensorData(uint8_t ir_left, uint8_t ir_right, uint16_t distance_cm) {
+    uint8_t data[4];
     data[0] = ir_left;
-    data[1] = ir_center;
-    data[2] = ir_right;
-    data[3] = (uint8_t)(distance_cm & 0xFF);        // Low byte
-    data[4] = (uint8_t)((distance_cm >> 8) & 0xFF); // High byte
+    data[1] = ir_right;
+    data[2] = (uint8_t)(distance_cm & 0xFF);        // Low byte
+    data[3] = (uint8_t)((distance_cm >> 8) & 0xFF); // High byte
 
-    sendPacket(TEL_SENSOR_DATA, data, 5);
+    sendPacket(TEL_SENSOR_DATA, data, 4);
 }
 
 void Communication::sendFlywheelStatus(uint16_t rpm_left, uint16_t rpm_right) {
