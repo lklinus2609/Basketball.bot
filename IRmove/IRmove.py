@@ -26,12 +26,12 @@ class IRMonitor:
         # Prevents "chatter" when at the edge of the beam
         
         if self.state == 1:  # Currently NOT DETECTED (Moving)
-            # Require strong signal (>60%) to stop
-            if zeros > self.samples * 0.6:
+            # Require ≥20% signal to stop (≥4 out of 20 samples)
+            if zeros >= self.samples * 0.2:
                 self.state = 0
         else:  # Currently DETECTED (Stopped)
-            # Require strong loss of signal (<40% detected) to start moving
-            if zeros < self.samples * 0.4:
+            # Require <10% signal to start moving again (<2 out of 20 samples)
+            if zeros < self.samples * 0.1:
                 self.state = 1
                 
         return self.state
