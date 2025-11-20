@@ -22,7 +22,7 @@ GPIO.setup(SENSOR_1, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 # Panning Configuration
 # -------------------------------
 PAN_SPEED = 75           # Motor speed for panning
-PAN_DURATION = 3.0       # Seconds to pan in each direction (~90° total range)
+PAN_DURATION = 1.5       # Seconds to pan in each direction (~90° total range)
 STOP_DURATION = 0.5      # Minimum stop time when beacon detected
 
 class IRMonitor:
@@ -52,36 +52,13 @@ class PanningScanner:
     def __init__(self):
         self.direction = 1  # 1 = right, -1 = left
         self.pan_start_time = time.time()
-        self.stopped = False
-        self.stop_timestamp = 0
         
-    def get_motor_speeds(self, ir_detected):
+    def get_motor_command(self):
         """
-        Calculate motor speeds based on IR detection and panning state
-        Returns (left_speed, right_speed) for differential drive rotation
+        Calculate desired motor speed based on panning state
+        Arduino will handle stopping when beacon detected
         """
         current_time = time.time()
-        
-        # If beacon detected, stop and hold
-        if ir_detected:
-            if not self.stopped:
-                print("BEACON DETECTED - STOPPING")
-                self.stopped = True
-                self.stop_timestamp = current_time
-            return (0, 0)  # Stop motors
-        
-        # If we were stopped, check if minimum stop duration has passed
-        if self.stopped:
-            if current_time - self.stop_timestamp < STOP_DURATION:
-                # Still in minimum stop period
-                return (0, 0)
-            else:
-                # Resume panning
-                print("RESUMING SCAN")
-                self.stopped = False
-                self.pan_start_time = current_time
-        
-        # Calculate panning motion
         time_in_direction = current_time - self.pan_start_time
         
         # Check if we need to reverse direction
@@ -90,13 +67,11 @@ class PanningScanner:
             self.pan_start_time = current_time
             print(f"Reversing direction: {'RIGHT' if self.direction > 0 else 'LEFT'}")
         
-        # Set motor speeds for rotation
+        # Return motor speed (Arduino handles stopping based on IR)
         if self.direction > 0:
-            # Pan right (clockwise)
-            return (PAN_SPEED, PAN_SPEED)
+            return PAN_SPEED  # Pan right
         else:
-            # Pan left (counter-clockwise)
-            return (-PAN_SPEED, -PAN_SPEED)
+            return -PAN_SPEED  # Pan left
 
 
 async def main():
@@ -119,27 +94,24 @@ async def main():
         while True:
             # Read IR sensor
             ir_state = ir_monitor.read_stable()
-            ir_detected = (ir_state == 0)  # 0 = detected
             
-            # Get motor speeds based on detection state
-            left_speed, right_speed = scanner.get_motor_speeds(ir_detected)
+            # Get desired motor speed (panning direction)
+            motor_speed = scanner.get_motor_command()
             
-            # Send motor commands to Arduino
-            command = f"<{left_speed},{right_speed}>"
+            # Send motor command + IR state to Arduino
+            # Arduino will handle 500ms stop timer
+            command = f"<{motor_speed},{ir_state}>"
             ser.write(command.encode())
             
             # Status display
-            if ir_detected and not scanner.stopped:
+            if ir_state == 0:
                 print("IR DETECTED")
-            elif scanner.stopped:
-                elapsed = time.time() - scanner.stop_timestamp
-                print(f"HOLDING ({elapsed:.1f}s / {STOP_DURATION}s)")
             
             await asyncio.sleep(0.1)  # 10 Hz update rate
 
     except KeyboardInterrupt:
         print("\n\nExiting...")
-        ser.write(b"<0,0>")  # Stop motors
+        ser.write(b"<0,1>")  # Stop motors
         GPIO.cleanup()
         ser.close()
 
