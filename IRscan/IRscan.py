@@ -65,7 +65,7 @@ class PanningScanner:
         # If beacon detected, stop and hold
         if ir_detected:
             if not self.stopped:
-                print("🛑 BEACON DETECTED - STOPPING")
+                print("BEACON DETECTED - STOPPING")
                 self.stopped = True
                 self.stop_timestamp = current_time
             return (0, 0)  # Stop motors
@@ -77,7 +77,7 @@ class PanningScanner:
                 return (0, 0)
             else:
                 # Resume panning
-                print("▶️  RESUMING SCAN")
+                print("RESUMING SCAN")
                 self.stopped = False
                 self.pan_start_time = current_time
         
@@ -88,7 +88,7 @@ class PanningScanner:
         if time_in_direction >= PAN_DURATION:
             self.direction *= -1  # Reverse direction
             self.pan_start_time = current_time
-            print(f"🔄 Reversing direction: {'RIGHT' if self.direction > 0 else 'LEFT'}")
+            print(f"Reversing direction: {'RIGHT' if self.direction > 0 else 'LEFT'}")
         
         # Set motor speeds for rotation
         if self.direction > 0:
@@ -130,10 +130,10 @@ async def main():
             
             # Status display
             if ir_detected and not scanner.stopped:
-                print("🎯 IR DETECTED")
+                print("IR DETECTED")
             elif scanner.stopped:
                 elapsed = time.time() - scanner.stop_timestamp
-                print(f"⏸️  HOLDING ({elapsed:.1f}s / {STOP_DURATION}s)")
+                print(f"HOLDING ({elapsed:.1f}s / {STOP_DURATION}s)")
             
             await asyncio.sleep(0.1)  # 10 Hz update rate
 
