@@ -47,7 +47,7 @@ async def IRcheck(ir_monitor, ser):
     else:
         print("IR beam DETECTED")
 
-    await asyncio.sleep(0.01)  # 10 ms loop for faster response
+    await asyncio.sleep(0.1)  # 10 ms loop for faster response
 
 
 async def main():
