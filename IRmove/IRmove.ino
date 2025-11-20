@@ -6,53 +6,6 @@ const byte numChars = 32;
 char receivedChars[numChars];
 char tempChar[numChars]; // temporary array used for parsing
 
-
-//motor command variables
-int irValue = 1;
-boolean newData = false;
-
-
-double interval = 3000;
-boolean cooldown = false;
-unsigned long previousMillis = 0;
-
-
-void setup() {
-    Serial.begin(115200);
-    Serial.println("<Arduino is ready>");
-    pinMode(3,OUTPUT);
-}
-
-void loop() {
-    recvWithStartEndMarkers();
-    unsigned long currentMillis = millis();
-    if(cooldown && (currentMillis - previousMillis >= interval)){
-          cooldown = false;
-          digitalWrite(3,LOW);
-      }
-    if (newData == true) {
-      strcpy(tempChar, receivedChars);
-        if(!cooldown){
-          parseData(); 
-          if(irValue==0){
-              previousMillis = currentMillis;
-              cooldown = true;
-              digitalWrite(3,HIGH);
-            }
-        }
-      newData = false;
-
-      
-                   
-    }
-
-    commandMotors(); //we want this to happen outside of our newdata=true loop so it is never blocked
-}
-
-
-//======================================================
-
-
 void parseData(){
   char *strtokIndexer; //doing char * allows strtok to increment across my string properly frankly im not sure why... something to do with pointers that I dont expect students to understand
   strtokIndexer = strtok(tempChar,","); //sets strtokIndexer = to everything up to the first comma in tempChar /0 //this line is broken

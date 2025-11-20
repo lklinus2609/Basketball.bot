@@ -115,6 +115,11 @@ RETURN_TO_CENTER_AFTER_SHOT = True  # Return lazy susan to 0° after each shot
 # 3 sensors for left, center, right beacon detection
 IR_DETECTION_THRESHOLD = 0.5  # Seconds of stable detection before accepting
 
+# IR Filter Parameters (Hysteresis)
+IR_FILTER_SAMPLES = 10        # Number of samples to keep in history
+IR_FILTER_THRESHOLD_HIGH = 6  # >60% (6/10) to activate (STOP)
+IR_FILTER_THRESHOLD_LOW = 4   # <40% (4/10) to deactivate (START)
+
 # Ultrasonic sensor
 ULTRASONIC_MIN_DISTANCE = 12  # inches (too close to shoot)
 ULTRASONIC_MAX_DISTANCE = 72  # inches (back wall)

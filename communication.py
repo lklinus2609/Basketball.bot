@@ -7,7 +7,11 @@ import serial
 import struct
 import time
 from enum import IntEnum
-from config import SERIAL_PORT, BAUD_RATE, SERIAL_TIMEOUT, DEBUG_MODE
+from collections import deque
+from config import (
+    SERIAL_PORT, BAUD_RATE, SERIAL_TIMEOUT, DEBUG_MODE,
+    IR_FILTER_SAMPLES, IR_FILTER_THRESHOLD_HIGH, IR_FILTER_THRESHOLD_LOW
+)
 
 
 class CommandType(IntEnum):
@@ -53,6 +57,21 @@ class AStarCommunication:
             'lazy_susan_angle': 0.0,
             'loader_ready': True,
             'timestamp': 0
+        }
+
+        # IR Filter State
+        # History buffers for each sensor (deque with maxlen)
+        self.ir_history = {
+            'ir_left': deque(maxlen=IR_FILTER_SAMPLES),
+            'ir_center': deque(maxlen=IR_FILTER_SAMPLES),
+            'ir_right': deque(maxlen=IR_FILTER_SAMPLES)
+        }
+        
+        # Filtered state (True = Detected, False = Not Detected)
+        self.ir_filtered_state = {
+            'ir_left': False,
+            'ir_center': False,
+            'ir_right': False
         }
 
         self.connected = False
@@ -230,6 +249,11 @@ class AStarCommunication:
                     self.telemetry['ir_right'] = data[2]
                     self.telemetry['distance_cm'] = struct.unpack('<H', data[3:5])[0]
                     self.telemetry['timestamp'] = time.time()
+                    
+                    # Update filters
+                    self._update_ir_filter('ir_left', self.telemetry['ir_left'])
+                    self._update_ir_filter('ir_center', self.telemetry['ir_center'])
+                    self._update_ir_filter('ir_right', self.telemetry['ir_right'])
 
             elif msg_type == TelemetryType.FLYWHEEL_STATUS:
                 # Both flywheel RPMs (2x 2 bytes)
@@ -257,6 +281,31 @@ class AStarCommunication:
             if DEBUG_MODE:
                 print(f"[COMM] Parse error: {e}")
 
+    def _update_ir_filter(self, sensor_name, raw_value):
+        """
+        Update hysteresis filter for a specific sensor
+        raw_value: 0 (Detected) or 1 (Not Detected)
+        """
+        # Add to history (0 = Detected, 1 = Not Detected)
+        # We want to count DETECTIONS, so we store True if raw_value == 0
+        is_detected = (raw_value == 0)
+        self.ir_history[sensor_name].append(is_detected)
+        
+        # Count detections in history
+        detections = sum(self.ir_history[sensor_name])
+        
+        # Hysteresis Logic
+        if self.ir_filtered_state[sensor_name]:
+            # Currently DETECTED (ON)
+            # Turn OFF only if detections drop below LOW threshold
+            if detections < IR_FILTER_THRESHOLD_LOW:
+                self.ir_filtered_state[sensor_name] = False
+        else:
+            # Currently NOT DETECTED (OFF)
+            # Turn ON only if detections exceed HIGH threshold
+            if detections >= IR_FILTER_THRESHOLD_HIGH:
+                self.ir_filtered_state[sensor_name] = True
+
     def get_active_beacon(self):
         """
         Determine which IR beacon is active
@@ -264,10 +313,10 @@ class AStarCommunication:
         Returns:
             'LEFT', 'CENTER', 'RIGHT', or None
         """
-        # TSOP34156 is active-low: LOW (0) = beacon detected
-        ir_left = self.telemetry['ir_left'] == 0
-        ir_center = self.telemetry['ir_center'] == 0
-        ir_right = self.telemetry['ir_right'] == 0
+        # Use FILTERED state instead of raw telemetry
+        ir_left = self.ir_filtered_state['ir_left']
+        ir_center = self.ir_filtered_state['ir_center']
+        ir_right = self.ir_filtered_state['ir_right']
 
         # Return strongest signal (or first detected)
         if ir_center:

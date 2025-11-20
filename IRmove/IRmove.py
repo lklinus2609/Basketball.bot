@@ -20,7 +20,20 @@ class IRMonitor:
 
     def read_stable(self):
         vals = [GPIO.input(self.pin) for _ in range(self.samples)]
-        self.state = 0 if sum(vals) < self.samples / 2 else 1
+        zeros = vals.count(0)  # Count "detected" samples (LOW)
+
+        # Hysteresis Logic (Sticky State)
+        # Prevents "chatter" when at the edge of the beam
+        
+        if self.state == 1:  # Currently NOT DETECTED (Moving)
+            # Require strong signal (>60%) to stop
+            if zeros > self.samples * 0.6:
+                self.state = 0
+        else:  # Currently DETECTED (Stopped)
+            # Require strong loss of signal (<40% detected) to start moving
+            if zeros < self.samples * 0.4:
+                self.state = 1
+                
         return self.state
 
 
@@ -34,7 +47,7 @@ async def IRcheck(ir_monitor, ser):
     else:
         print("IR beam DETECTED")
 
-    await asyncio.sleep(0.05)  # 100 ms loop for fast response
+    await asyncio.sleep(0.01)  # 10 ms loop for faster response
 
 
 async def main():
