@@ -5,7 +5,8 @@ AStar32U4Motors m;
 
 // Encoders: Right wheel = A0,A1 | Left wheel = A2,A3
 // Resolution: 1440 counts per wheel revolution
-Encoder encoderRight(0, 1);  // Right wheel encoder (A0, A1) for rotation tracking
+Encoder encoderRight(0, 1);  // Right wheel encoder (A0, A1)
+Encoder encoderLeft(2, 3);   // Left wheel encoder (A2, A3)
 
 const byte numChars = 32;
 char receivedChars[numChars];
@@ -19,7 +20,7 @@ unsigned long stopTimestamp = 0;  // Track when we stopped
 const unsigned long MIN_STOP_DURATION = 500;  // Minimum 500ms stop time
 
 // Encoder-based panning
-long encoderTarget = 0;      // Target encoder position for this direction
+long rotationTarget = 0;     // Target rotation position
 // ENCODER_PAN_RANGE: Tune this value to achieve desired 90° sweep
 // Start with 360 (~1/4 wheel revolution) and adjust based on actual robot behavior
 // Increase value = wider sweep, Decrease value = narrower sweep
@@ -43,7 +44,13 @@ void parseData(){
 
 void commandMotors(){
     unsigned long currentTime = millis();
-    long currentEncoder = encoderRight.read();
+    
+    // Calculate rotation from differential encoder readings
+    // For in-place rotation: right moves forward, left moves backward
+    // Rotation = (encoderRight - encoderLeft) / 2
+    long encoderRight_val = encoderRight.read();
+    long encoderLeft_val = encoderLeft.read();
+    long currentRotation = (encoderRight_val - encoderLeft_val) / 2;
     
     if(irValue == 0){  // Beacon DETECTED (stop)
         m.setM1Speed(0);
@@ -53,15 +60,15 @@ void commandMotors(){
     else {  // Beacon NOT detected
         // Only allow movement if we've been stopped for at least MIN_STOP_DURATION
         if(currentTime - stopTimestamp >= MIN_STOP_DURATION){
-            // Check if we need to reverse direction based on encoder position
-            if(motorSpeed > 0 && currentEncoder >= encoderTarget) {
+            // Check if we need to reverse direction based on rotation position
+            if(motorSpeed > 0 && currentRotation >= rotationTarget) {
                 // Hit right limit, reverse to left
-                encoderTarget = currentEncoder - ENCODER_PAN_RANGE;
+                rotationTarget = currentRotation - ENCODER_PAN_RANGE;
                 currentDirection = -1;
             } 
-            else if(motorSpeed < 0 && currentEncoder <= encoderTarget) {
+            else if(motorSpeed < 0 && currentRotation <= rotationTarget) {
                 // Hit left limit, reverse to right
-                encoderTarget = currentEncoder + ENCODER_PAN_RANGE;
+                rotationTarget = currentRotation + ENCODER_PAN_RANGE;
                 currentDirection = 1;
             }
             
@@ -71,7 +78,7 @@ void commandMotors(){
             // Initialize direction on first run
             if(currentDirection == 0) {
                 currentDirection = (motorSpeed > 0) ? 1 : -1;
-                encoderTarget = currentEncoder + (currentDirection * ENCODER_PAN_RANGE);
+                rotationTarget = currentRotation + (currentDirection * ENCODER_PAN_RANGE);
             }
             
             m.setM1Speed(actualSpeed);
@@ -118,7 +125,8 @@ void recvWithStartEndMarkers() {
 
 void setup() {
     Serial.begin(115200);
-    encoderRight.write(0);  // Reset encoder position
+    encoderRight.write(0);  // Reset right encoder
+    encoderLeft.write(0);   // Reset left encoder
 }
 
 void loop() {
