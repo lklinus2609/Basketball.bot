@@ -49,29 +49,13 @@ class IRMonitor:
 
 
 class PanningScanner:
-    def __init__(self):
-        self.direction = 1  # 1 = right, -1 = left
-        self.pan_start_time = time.time()
-        
+    """
+    Simple scanner - sends constant speed to Arduino
+    Arduino handles all panning direction control via encoders
+    """
     def get_motor_command(self):
-        """
-        Calculate desired motor speed based on panning state
-        Arduino will handle stopping when beacon detected
-        """
-        current_time = time.time()
-        time_in_direction = current_time - self.pan_start_time
-        
-        # Check if we need to reverse direction
-        if time_in_direction >= PAN_DURATION:
-            self.direction *= -1  # Reverse direction
-            self.pan_start_time = current_time
-            print(f"Reversing direction: {'RIGHT' if self.direction > 0 else 'LEFT'}")
-        
-        # Return motor speed (Arduino handles stopping based on IR)
-        if self.direction > 0:
-            return PAN_SPEED  # Pan right
-        else:
-            return -PAN_SPEED  # Pan left
+        """Return constant motor speed - Arduino controls direction"""
+        return PAN_SPEED  # Always send positive speed, Arduino handles reversing
 
 
 async def main():

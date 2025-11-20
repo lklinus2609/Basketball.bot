@@ -60,26 +60,27 @@ void commandMotors(){
     else {  // Beacon NOT detected
         // Only allow movement if we've been stopped for at least MIN_STOP_DURATION
         if(currentTime - stopTimestamp >= MIN_STOP_DURATION){
-            // Check if we need to reverse direction based on rotation position
-            if(motorSpeed > 0 && currentRotation >= rotationTarget) {
-                // Hit right limit, reverse to left
-                rotationTarget = currentRotation - ENCODER_PAN_RANGE;
-                currentDirection = -1;
-            } 
-            else if(motorSpeed < 0 && currentRotation <= rotationTarget) {
-                // Hit left limit, reverse to right
-                rotationTarget = currentRotation + ENCODER_PAN_RANGE;
-                currentDirection = 1;
-            }
-            
-            // Use motor speed from Python, but apply current direction
-            int actualSpeed = (currentDirection == 0) ? motorSpeed : (currentDirection > 0 ? abs(motorSpeed) : -abs(motorSpeed));
             
             // Initialize direction on first run
             if(currentDirection == 0) {
-                currentDirection = (motorSpeed > 0) ? 1 : -1;
-                rotationTarget = currentRotation + (currentDirection * ENCODER_PAN_RANGE);
+                currentDirection = 1;  // Start panning right
+                rotationTarget = currentRotation + ENCODER_PAN_RANGE;
             }
+            
+            // Check if we need to reverse direction based on rotation position
+            if(currentDirection > 0 && currentRotation >= rotationTarget) {
+                // Hit right limit, reverse to left
+                currentDirection = -1;
+                rotationTarget = currentRotation - ENCODER_PAN_RANGE;
+            } 
+            else if(currentDirection < 0 && currentRotation <= rotationTarget) {
+                // Hit left limit, reverse to right
+                currentDirection = 1;
+                rotationTarget = currentRotation + ENCODER_PAN_RANGE;
+            }
+            
+            // Apply current direction to motor speed (use abs of motorSpeed from Python)
+            int actualSpeed = currentDirection * abs(motorSpeed);
             
             m.setM1Speed(actualSpeed);
             m.setM2Speed(actualSpeed);
