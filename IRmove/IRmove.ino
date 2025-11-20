@@ -9,6 +9,8 @@ char tempChar[numChars]; // temporary array used for parsing
 // Global variables
 int irValue = 0;
 boolean newData = false;
+unsigned long stopTimestamp = 0;  // Track when we stopped
+const unsigned long MIN_STOP_DURATION = 500;  // Minimum 500ms stop time
 
 void parseData(){
   char *strtokIndexer; //doing char * allows strtok to increment across my string properly frankly im not sure why... something to do with pointers that I dont expect students to understand
@@ -25,12 +27,23 @@ void parseData(){
 //=======================================
 
 void commandMotors(){
-    if(irValue){
-        m.setM1Speed(75);
-        m.setM2Speed(75);
-    }else{
-      m.setM1Speed(0);
-      m.setM2Speed(0);
+    unsigned long currentTime = millis();
+    
+    if(irValue == 0){  // Beacon DETECTED (stop)
+        m.setM1Speed(0);
+        m.setM2Speed(0);
+        stopTimestamp = currentTime;  // Record when we stopped
+    }
+    else {  // Beacon NOT detected (should move)
+        // Only allow movement if we've been stopped for at least MIN_STOP_DURATION
+        if(currentTime - stopTimestamp >= MIN_STOP_DURATION){
+            m.setM1Speed(75);
+            m.setM2Speed(75);
+        } else {
+            // Still in minimum stop period - keep motors stopped
+            m.setM1Speed(0);
+            m.setM2Speed(0);
+        }
     }
 }
 
