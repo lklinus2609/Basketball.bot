@@ -6,6 +6,10 @@ const byte numChars = 32;
 char receivedChars[numChars];
 char tempChar[numChars]; // temporary array used for parsing
 
+// Global variables
+int irValue = 0;
+boolean newData = false;
+
 void parseData(){
   char *strtokIndexer; //doing char * allows strtok to increment across my string properly frankly im not sure why... something to do with pointers that I dont expect students to understand
   strtokIndexer = strtok(tempChar,","); //sets strtokIndexer = to everything up to the first comma in tempChar /0 //this line is broken
