@@ -93,10 +93,10 @@ class PanningScanner:
         # Set motor speeds for rotation
         if self.direction > 0:
             # Pan right (clockwise)
-            return (-PAN_SPEED, PAN_SPEED)
+            return (PAN_SPEED, PAN_SPEED)
         else:
             # Pan left (counter-clockwise)
-            return (PAN_SPEED, -PAN_SPEED)
+            return (-PAN_SPEED, -PAN_SPEED)
 
 
 async def main():
