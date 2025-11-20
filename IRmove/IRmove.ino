@@ -70,3 +70,23 @@ void recvWithStartEndMarkers() {
         }
     }
 }
+
+//=========================================================
+// Arduino required functions
+//=========================================================
+
+void setup() {
+    Serial.begin(9600);  // Initialize serial communication
+}
+
+void loop() {
+    recvWithStartEndMarkers();  // Check for incoming serial data
+    
+    if (newData == true) {
+        strcpy(tempChar, receivedChars);  // Copy received data to temp array for parsing
+        parseData();  // Parse the received data
+        newData = false;  // Reset the flag
+    }
+    
+    commandMotors();  // Command motors based on irValue
+}
