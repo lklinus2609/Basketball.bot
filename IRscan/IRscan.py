@@ -117,6 +117,18 @@ async def main():
             command = f"<{motor_speed},{ir_state}>"
             ser.write(command.encode())
             
+            # READ SERIAL to prevent Arduino blocking!
+            # Arduino sends debug info every 500ms. If we don't read it, 
+            # Arduino's TX buffer fills up and Serial.print() BLOCKS.
+            arduino_debug = ""
+            while ser.in_waiting > 0:
+                try:
+                    line = ser.readline().decode('utf-8', errors='ignore').strip()
+                    if line:
+                        arduino_debug = line  # Keep last line for display
+                except Exception:
+                    pass
+            
             # Detect state changes
             state_changed = (ir_state != prev_state)
             command_changed = (command != last_command)
@@ -132,7 +144,11 @@ async def main():
             # Print every loop for detailed tracking
             loop_count += 1
             state_str = "DETECT" if ir_state == 0 else "CLEAR "
-            print(f"{loop_count:5d} | {state_str} | {zeros:2d}/20 ({zeros*5:3d}%) | {command:10s} | {' '.join(notes)}")
+            
+            # Append Arduino debug info if available
+            debug_str = f" | Ard: {arduino_debug}" if arduino_debug else ""
+            
+            print(f"{loop_count:5d} | {state_str} | {zeros:2d}/20 ({zeros*5:3d}%) | {command:10s} | {' '.join(notes)}{debug_str}")
             
             last_ir_state = ir_state
             last_command = command

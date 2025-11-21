@@ -77,11 +77,16 @@ void commandMotors(){
         // Only allow movement if we've been stopped for at least MIN_STOP_DURATION
         if(currentTime - stopTimestamp >= MIN_STOP_DURATION){
             
-            // Safety bounds check - force reversal if exceeded (catches motor stalls)
-            if(abs(currentRotation) > SAFETY_LIMIT) {
-                currentDirection *= -1;  // Force reverse
-                rotationTarget = 0;  // Reset target toward center
-                Serial.println("*** SAFETY: Exceeded bounds, forcing reversal");
+            // Safety bounds check - force reversal only if moving AWAY from center
+            if(currentRotation > SAFETY_LIMIT && currentDirection == 1) {
+                currentDirection = -1; // Force Left
+                rotationTarget = -ENCODER_PAN_RANGE; // Go to -363
+                Serial.println("*** SAFETY: > Limit, forcing LEFT");
+            }
+            else if(currentRotation < -SAFETY_LIMIT && currentDirection == -1) {
+                currentDirection = 1; // Force Right
+                rotationTarget = ENCODER_PAN_RANGE; // Go to +363
+                Serial.println("*** SAFETY: < Limit, forcing RIGHT");
             }
             
             // Initialize direction on first run
