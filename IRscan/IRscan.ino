@@ -47,10 +47,12 @@ void commandMotors(){
     
     // Calculate rotation from differential encoder readings
     // For in-place rotation: right moves forward, left moves backward
-    // Rotation = (encoderRight - encoderLeft) / 2
+    // Rotation = (encoderLeft - encoderRight) / 2  <-- SWAPPED to match motor direction
+    // Right turn (Dir=1): Left(+), Right(-) -> (+ - -) = Positive Rotation
+    // Left turn (Dir=-1): Left(-), Right(+) -> (- - +) = Negative Rotation
     long encoderRight_val = encoderRight.read();
     long encoderLeft_val = encoderLeft.read();
-    long currentRotation = (encoderRight_val - encoderLeft_val) / 2;
+    long currentRotation = (encoderLeft_val - encoderRight_val) / 2;
     
     // Debug output every 500ms
     static unsigned long lastDebugTime = 0;
