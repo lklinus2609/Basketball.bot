@@ -21,10 +21,10 @@ const unsigned long MIN_STOP_DURATION = 500;  // Minimum 500ms stop time
 
 // Encoder-based panning
 long rotationTarget = 0;     // Target rotation position
-// ENCODER_PAN_RANGE: Tune this value to achieve desired 90° sweep
+// ENCODER_PAN_RANGE: Tune this value to achieve desired 90 deg sweep
 // Start with 360 (~1/4 wheel revolution) and adjust based on actual robot behavior
 // Increase value = wider sweep, Decrease value = narrower sweep
-const long ENCODER_PAN_RANGE = 360;  // Encoder ticks for ~45° robot rotation (half of 90° sweep)
+const long ENCODER_PAN_RANGE = 360;  // Encoder ticks for ~45 deg robot rotation (half of 90 deg sweep)
 int currentDirection = 0;    // Track current panning direction: 1=right, -1=left
 
 void parseData(){

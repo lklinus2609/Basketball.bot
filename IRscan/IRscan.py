@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 IR Scanning Test with Panning Motion
-- Pans back and forth within ~90° range
+- Pans back and forth within ~90 degree range
 - Stops when IR beacon detected
 - Holds for 0.5s minimum before resuming
 """
@@ -22,7 +22,7 @@ GPIO.setup(SENSOR_1, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 # Panning Configuration
 # -------------------------------
 PAN_SPEED = 75           # Motor speed for panning
-PAN_DURATION = 1.5       # Seconds to pan in each direction (~90° total range)
+PAN_DURATION = 1.5       # Seconds to pan in each direction (~90 deg total range)
 STOP_DURATION = 0.5      # Minimum stop time when beacon detected
 
 class IRMonitor:
@@ -37,7 +37,7 @@ class IRMonitor:
 
         # Hysteresis Logic (20% detect, 10% clear)
         if self.state == 1:  # Currently NOT DETECTED (Moving)
-            # Require ≥20% signal to stop (≥4 out of 20 samples)
+            # Require >=20% signal to stop (>=4 out of 20 samples)
             if zeros >= self.samples * 0.2:
                 self.state = 0
         else:  # Currently DETECTED (Stopped)
@@ -62,7 +62,7 @@ async def main():
     print("=" * 50)
     print("IR PANNING SCANNER TEST")
     print("=" * 50)
-    print(f"Pan range: ~90° (±45° from center)")
+    print(f"Pan range: ~90 deg (+/- 45 deg from center)")
     print(f"Pan speed: {PAN_SPEED}")
     print(f"Direction switch: every {PAN_DURATION}s")
     print(f"Stop hold time: {STOP_DURATION}s")
