@@ -3,10 +3,10 @@
 
 AStar32U4Motors m;
 
-// Encoders: Right wheel = A0,A1 | Left wheel = A2,A3
+// Encoders: Right wheel = A0, A1 | Left wheel = A2, A3
 // Resolution: 1440 counts per wheel revolution
-Encoder encoderRight(0, 1);  // Right wheel encoder (A0, A1)
-Encoder encoderLeft(2, 3);   // Left wheel encoder (A2, A3)
+Encoder encoderRight(A0, A1);  // Right wheel encoder
+Encoder encoderLeft(A2, A3);   // Left wheel encoder
 
 const byte numChars = 32;
 char receivedChars[numChars];
