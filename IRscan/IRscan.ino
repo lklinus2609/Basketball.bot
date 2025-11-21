@@ -99,10 +99,20 @@ void commandMotors(){
             }
             
             // Apply current direction to motor speed (use abs of motorSpeed from Python)
-            int actualSpeed = currentDirection * abs(motorSpeed);
+            // For in-place rotation: motors must spin in OPPOSITE directions
+            // M1 = Right motor, M2 = Left motor
+            int actualSpeed = abs(motorSpeed);
             
-            m.setM1Speed(actualSpeed);
-            m.setM2Speed(actualSpeed);
+            if(currentDirection > 0) {
+                // Rotate right (clockwise): right backward, left forward
+                m.setM1Speed(-actualSpeed);
+                m.setM2Speed(actualSpeed);
+            } else {
+                // Rotate left (counter-clockwise): right forward, left backward  
+                m.setM1Speed(actualSpeed);
+                m.setM2Speed(-actualSpeed);
+            }
+
         } else {
             // Still in minimum stop period - keep motors stopped
             m.setM1Speed(0);
