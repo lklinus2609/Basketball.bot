@@ -60,11 +60,10 @@ class PanningScanner:
 
 async def main():
     print("=" * 50)
-    print("IR PANNING SCANNER TEST")
+    print("IR PANNING SCANNER TEST - DEBUG MODE")
     print("=" * 50)
     print(f"Pan range: ~90 deg (+/- 45 deg from center)")
     print(f"Pan speed: {PAN_SPEED}")
-    print(f"Direction switch: every {PAN_DURATION}s")
     print(f"Stop hold time: {STOP_DURATION}s")
     print("=" * 50)
 
@@ -85,29 +84,63 @@ async def main():
     scanner = PanningScanner()
     print("Ready to start panning!")
     print("=" * 50)
+    print("DEBUG: Loop | IR_State | Samples(0s/20) | Cmd | Notes")
+    print("-" * 70)
     
     loop_count = 0
+    last_ir_state = ir_monitor.state
+    last_command = ""
 
     try:
         while True:
-            # Read IR sensor
-            ir_state = ir_monitor.read_stable()
+            loop_start = time.time()
             
-            # Get desired motor speed (panning direction)
+            # Read IR sensor with sample tracking
+            vals = [GPIO.input(SENSOR_1) for _ in range(20)]
+            zeros = vals.count(0)
+            prev_state = ir_monitor.state
+            
+            # Manual hysteresis logic with tracking
+            if ir_monitor.state == 1:  # Currently NOT DETECTED
+                if zeros >= 4:  # 20% threshold
+                    ir_monitor.state = 0
+            else:  # Currently DETECTED
+                if zeros < 2:  # 10% threshold
+                    ir_monitor.state = 1
+            
+            ir_state = ir_monitor.state
+            
+            # Get motor command
             motor_speed = scanner.get_motor_command()
             
-            # Send motor command + IR state to Arduino
-            # Arduino will handle 500ms stop timer
+            # Send command to Arduino
             command = f"<{motor_speed},{ir_state}>"
             ser.write(command.encode())
             
-            # Debug output every 10 loops (1 second)
-            loop_count += 1
-            if loop_count % 10 == 0:
-                ir_status = "DETECTED" if ir_state == 0 else "clear"
-                print(f"Sent: {command} | IR: {ir_status}")
+            # Detect state changes
+            state_changed = (ir_state != prev_state)
+            command_changed = (command != last_command)
             
-            await asyncio.sleep(0.1)  # 10 Hz update rate
+            # Print debug info every loop OR when state changes
+            notes = []
+            if state_changed:
+                if ir_state == 0:
+                    notes.append(">>> IR DETECTED! STOPPING")
+                else:
+                    notes.append(">>> IR CLEARED! RESUMING")
+            
+            # Print every loop for detailed tracking
+            loop_count += 1
+            state_str = "DETECT" if ir_state == 0 else "CLEAR "
+            print(f"{loop_count:5d} | {state_str} | {zeros:2d}/20 ({zeros*5:3d}%) | {command:10s} | {' '.join(notes)}")
+            
+            last_ir_state = ir_state
+            last_command = command
+            
+            # Sleep to maintain 10Hz
+            elapsed = time.time() - loop_start
+            sleep_time = max(0, 0.1 - elapsed)
+            await asyncio.sleep(sleep_time)
 
     except KeyboardInterrupt:
         print("\n\nExiting...")
@@ -118,3 +151,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
