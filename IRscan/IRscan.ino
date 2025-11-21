@@ -21,14 +21,11 @@ const unsigned long MIN_STOP_DURATION = 500;  // Minimum 500ms stop time
 
 // Encoder-based panning
 long rotationTarget = 0;     // Target rotation position
-// ENCODER_PAN_RANGE: Calculated for 90 deg robot rotation
-// Wheelbase: 141mm, Wheel diameter: 70mm, Encoder res: 1440 counts/rev
-// Arc per wheel for 90 deg = (pi/4) * wheelbase = 110.7mm
-// Wheel revolutions = 110.7 / (pi * 70) = 0.504 rev
-// Encoder counts = 0.504 * 1440 = 726 counts per wheel
-// With differential (right-left)/2: when right=+726, left=-726, rotation = (726-(-726))/2 = 726
-const long ENCODER_PAN_RANGE = 726;  // Rotation value for 45 deg sweep (90 deg total)
-int currentDirection = 0;    // Track current panning direction: 1=right, -1=left
+// ENCODER_PAN_RANGE: Set for 45 deg sweep each direction (90 deg total centered at 0)
+// Boundaries: +363 (right limit) and -363 (left limit)
+const long ENCODER_PAN_RANGE = 363;  // Rotation value for 45 deg sweep
+const long SAFETY_LIMIT = 800;       // Hard limit to catch motor stalls/runaway
+int currentDirection = 0;            // Track current panning direction: 1=right, -1=left
 
 void parseData(){
   char *strtokIndexer;
@@ -80,24 +77,31 @@ void commandMotors(){
         // Only allow movement if we've been stopped for at least MIN_STOP_DURATION
         if(currentTime - stopTimestamp >= MIN_STOP_DURATION){
             
+            // Safety bounds check - force reversal if exceeded (catches motor stalls)
+            if(abs(currentRotation) > SAFETY_LIMIT) {
+                currentDirection *= -1;  // Force reverse
+                rotationTarget = 0;  // Reset target toward center
+                Serial.println("*** SAFETY: Exceeded bounds, forcing reversal");
+            }
+            
             // Initialize direction on first run
             if(currentDirection == 0) {
-                currentDirection = -1;  // Start panning LEFT (negative = clockwise based on wiring)
-                rotationTarget = currentRotation - ENCODER_PAN_RANGE;
+                currentDirection = -1;  // Start panning LEFT
+                rotationTarget = -ENCODER_PAN_RANGE;  // Target -363
                 Serial.println("*** INIT: Starting LEFT");
             }
             
             // Check if we need to reverse direction based on rotation position
             if(currentDirection < 0 && currentRotation <= rotationTarget) {
-                // Hit left limit, reverse to right
+                // Hit left limit (-363), reverse to right
                 currentDirection = 1;
-                rotationTarget = currentRotation + ENCODER_PAN_RANGE;
+                rotationTarget = ENCODER_PAN_RANGE;  // Target +363
                 Serial.println("*** REVERSE: Now going RIGHT");
             } 
             else if(currentDirection > 0 && currentRotation >= rotationTarget) {
-                // Hit right limit, reverse to left
+                // Hit right limit (+363), reverse to left
                 currentDirection = -1;
-                rotationTarget = currentRotation - ENCODER_PAN_RANGE;
+                rotationTarget = -ENCODER_PAN_RANGE;  // Target -363
                 Serial.println("*** REVERSE: Now going LEFT");
             }
             
