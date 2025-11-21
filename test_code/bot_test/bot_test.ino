@@ -8,6 +8,16 @@
 // --- DC Motor Pins (L298N) ---
 #define DC_MOTOR_IN1 7
 #define DC_MOTOR_IN2 8
+#define DC_MOTOR_IN3 6
+#define DC_MOTOR_IN4 5
+#define DC_MOTOR_ENA 9  // Enable pin for Motor A (Left Flywheel)
+#define DC_MOTOR_ENB 4  // Enable pin for Motor B (Right Flywheel)
+
+// --- Encoder Pins ---
+#define ENCODER_RIGHT_A 10  // Right flywheel (Motor B) encoder
+#define ENCODER_RIGHT_B 11
+#define ENCODER_LEFT_A 12   // Left flywheel (Motor A) encoder
+#define ENCODER_LEFT_B 13
 
 // Create an instance of the AccelStepper library
 AccelStepper myStepper(1, STEP_PIN, DIR_PIN);
@@ -29,12 +39,26 @@ void setup()
   // --- DC Motor Setup ---
   pinMode(DC_MOTOR_IN1, OUTPUT);
   pinMode(DC_MOTOR_IN2, OUTPUT);
-  Serial.println("DC Motor pins (8, 9) set to OUTPUT.");
+  pinMode(DC_MOTOR_IN3, OUTPUT);
+  pinMode(DC_MOTOR_IN4, OUTPUT);
+  pinMode(DC_MOTOR_ENA, OUTPUT);
+  pinMode(DC_MOTOR_ENB, OUTPUT);
+  Serial.println("DC Motor pins (IN1-4: 7,8,6,5) and enable pins (ENA/ENB: 9,4) set to OUTPUT.");
 
-  // Turn the DC motor ON (clockwise) to run forever
-  Serial.println("-> DC Motor ON - Running full speed.");
+  // Enable both motors by setting ENA and ENB to HIGH
+  digitalWrite(DC_MOTOR_ENA, HIGH);
+  digitalWrite(DC_MOTOR_ENB, HIGH);
+  Serial.println("-> DC Motors ENABLED (ENA and ENB set to HIGH).");
+
+  // Turn Motor A ON (clockwise) to run forever
+  Serial.println("-> Motor A ON - Running full speed.");
   digitalWrite(DC_MOTOR_IN1, LOW);
   digitalWrite(DC_MOTOR_IN2, HIGH);
+
+  // Turn Motor B ON (clockwise) to run forever
+  Serial.println("-> Motor B ON - Running full speed.");
+  digitalWrite(DC_MOTOR_IN3, LOW);
+  digitalWrite(DC_MOTOR_IN4, HIGH);
 
   // --- Stepper Motor Setup ---
   myStepper.setMaxSpeed(10000); 

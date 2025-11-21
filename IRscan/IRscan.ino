@@ -52,6 +52,22 @@ void commandMotors(){
     long encoderLeft_val = encoderLeft.read();
     long currentRotation = (encoderRight_val - encoderLeft_val) / 2;
     
+    // Debug output every 500ms
+    static unsigned long lastDebugTime = 0;
+    if(currentTime - lastDebugTime >= 500) {
+        Serial.print("R:");
+        Serial.print(encoderRight_val);
+        Serial.print(" L:");
+        Serial.print(encoderLeft_val);
+        Serial.print(" Rot:");
+        Serial.print(currentRotation);
+        Serial.print(" Tgt:");
+        Serial.print(rotationTarget);
+        Serial.print(" Dir:");
+        Serial.println(currentDirection);
+        lastDebugTime = currentTime;
+    }
+    
     if(irValue == 0){  // Beacon DETECTED (stop)
         m.setM1Speed(0);
         m.setM2Speed(0);
@@ -63,20 +79,23 @@ void commandMotors(){
             
             // Initialize direction on first run
             if(currentDirection == 0) {
-                currentDirection = 1;  // Start panning right
-                rotationTarget = currentRotation + ENCODER_PAN_RANGE;
+                currentDirection = -1;  // Start panning LEFT (negative = clockwise based on wiring)
+                rotationTarget = currentRotation - ENCODER_PAN_RANGE;
+                Serial.println("*** INIT: Starting LEFT");
             }
             
             // Check if we need to reverse direction based on rotation position
-            if(currentDirection > 0 && currentRotation >= rotationTarget) {
-                // Hit right limit, reverse to left
-                currentDirection = -1;
-                rotationTarget = currentRotation - ENCODER_PAN_RANGE;
-            } 
-            else if(currentDirection < 0 && currentRotation <= rotationTarget) {
+            if(currentDirection < 0 && currentRotation <= rotationTarget) {
                 // Hit left limit, reverse to right
                 currentDirection = 1;
                 rotationTarget = currentRotation + ENCODER_PAN_RANGE;
+                Serial.println("*** REVERSE: Now going RIGHT");
+            } 
+            else if(currentDirection > 0 && currentRotation >= rotationTarget) {
+                // Hit right limit, reverse to left
+                currentDirection = -1;
+                rotationTarget = currentRotation - ENCODER_PAN_RANGE;
+                Serial.println("*** REVERSE: Now going LEFT");
             }
             
             // Apply current direction to motor speed (use abs of motorSpeed from Python)
