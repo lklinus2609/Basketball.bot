@@ -21,10 +21,13 @@ const unsigned long MIN_STOP_DURATION = 500;  // Minimum 500ms stop time
 
 // Encoder-based panning
 long rotationTarget = 0;     // Target rotation position
-// ENCODER_PAN_RANGE: Tune this value to achieve desired 90 deg sweep
-// Start with 360 (~1/4 wheel revolution) and adjust based on actual robot behavior
-// Increase value = wider sweep, Decrease value = narrower sweep
-const long ENCODER_PAN_RANGE = 360;  // Encoder ticks for ~45 deg robot rotation (half of 90 deg sweep)
+// ENCODER_PAN_RANGE: Calculated for 90 deg robot rotation
+// Wheelbase: 141mm, Wheel diameter: 70mm, Encoder res: 1440 counts/rev
+// Arc per wheel for 90 deg = (pi/4) * wheelbase = 110.7mm
+// Wheel revolutions = 110.7 / (pi * 70) = 0.504 rev
+// Encoder counts = 0.504 * 1440 = 726 counts per wheel
+// With differential (right-left)/2: when right=+726, left=-726, rotation = (726-(-726))/2 = 726
+const long ENCODER_PAN_RANGE = 726;  // Rotation value for 45 deg sweep (90 deg total)
 int currentDirection = 0;    // Track current panning direction: 1=right, -1=left
 
 void parseData(){

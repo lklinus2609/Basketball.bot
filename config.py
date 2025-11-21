@@ -75,6 +75,23 @@ HOOP_HEIGHT_INCHES = 18.0
 LAUNCH_ANGLE_DEGREES = 15.0
 FLYWHEEL_RADIUS_MM = 20.0         # 40mm diameter / 2
 
+# Drive wheel parameters
+WHEEL_DIAMETER_INCHES = 2.7559055  # Drive wheel diameter
+WHEEL_RADIUS_INCHES = WHEEL_DIAMETER_INCHES / 2
+WHEEL_DIAMETER_MM = WHEEL_DIAMETER_INCHES * 25.4  # ~70mm
+WHEELBASE_MM = 141.0               # Distance between wheel centers (middle to middle)
+ENCODER_COUNTS_PER_REV = 1440      # Encoder resolution
+
+# Calculated rotation parameters
+# For 90 deg robot rotation:
+# Arc traveled by each wheel = (90/360) * pi * wheelbase = (pi/4) * wheelbase
+# Wheel revolutions = arc / (pi * wheel_diameter) = wheelbase / (4 * wheel_diameter)
+# Encoder counts per wheel = revolutions * 1440
+import math
+ENCODER_COUNTS_90_DEG = int((WHEELBASE_MM / (4 * WHEEL_DIAMETER_MM)) * ENCODER_COUNTS_PER_REV)
+# For differential (right-left)/2: when right=+726, left=-726, rotation = 726
+ENCODER_ROTATION_90_DEG = ENCODER_COUNTS_90_DEG  # Full count, differential formula handles it
+
 # ============================================================================
 # LOCALIZATION PARAMETERS
 # ============================================================================
