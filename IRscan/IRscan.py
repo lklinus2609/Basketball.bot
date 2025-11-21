@@ -68,11 +68,23 @@ async def main():
     print(f"Stop hold time: {STOP_DURATION}s")
     print("=" * 50)
 
-    ser = serial.Serial('/dev/ttyACM0', 115200)
-    ser.reset_input_buffer()
+    print("Opening serial connection...")
+    try:
+        ser = serial.Serial('/dev/ttyACM0', 115200, timeout=1)
+        print("Serial connection opened!")
+        ser.reset_input_buffer()
+        print("Input buffer cleared")
+    except Exception as e:
+        print(f"ERROR opening serial port: {e}")
+        print("Make sure Arduino is connected and code is uploaded")
+        GPIO.cleanup()
+        return
 
+    print("Initializing monitors...")
     ir_monitor = IRMonitor(SENSOR_1, samples=20)
     scanner = PanningScanner()
+    print("Ready to start panning!")
+    print("=" * 50)
 
     try:
         while True:
