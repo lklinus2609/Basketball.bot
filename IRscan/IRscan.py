@@ -85,6 +85,8 @@ async def main():
     scanner = PanningScanner()
     print("Ready to start panning!")
     print("=" * 50)
+    
+    loop_count = 0
 
     try:
         while True:
@@ -99,9 +101,11 @@ async def main():
             command = f"<{motor_speed},{ir_state}>"
             ser.write(command.encode())
             
-            # Status display
-            if ir_state == 0:
-                print("IR DETECTED")
+            # Debug output every 10 loops (1 second)
+            loop_count += 1
+            if loop_count % 10 == 0:
+                ir_status = "DETECTED" if ir_state == 0 else "clear"
+                print(f"Sent: {command} | IR: {ir_status}")
             
             await asyncio.sleep(0.1)  # 10 Hz update rate
 
@@ -110,6 +114,7 @@ async def main():
         ser.write(b"<0,1>")  # Stop motors
         GPIO.cleanup()
         ser.close()
+
 
 if __name__ == "__main__":
     asyncio.run(main())
