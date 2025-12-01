@@ -69,15 +69,20 @@ class BasketballRobot:
         print("\n" + "="*60)
         print("READY TO START")
         print("="*60)
-        print("\nPlace robot in starting zone, then press ENTER to begin...")
+        print("\nPlace robot in starting zone, then press '1' to begin...")
         print("(or type 'q' to quit)\n")
 
         try:
-            user_input = input(">>> ").strip().lower()
-            if user_input == 'q':
-                print("[MAIN] Cancelled by user")
-                self.stop()
-                return
+            while True:
+                user_input = input(">>> ").strip().lower()
+                if user_input == 'q':
+                    print("[MAIN] Cancelled by user")
+                    self.stop()
+                    return
+                elif user_input == '1':
+                    break
+                else:
+                    print("Please press '1' to start or 'q' to quit.")
         except KeyboardInterrupt:
             print("\n[MAIN] Cancelled by user")
             self.stop()

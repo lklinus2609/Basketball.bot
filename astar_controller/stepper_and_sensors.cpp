@@ -18,12 +18,25 @@ AccelStepper loader(AccelStepper::DRIVER, LOADER_STEP, LOADER_DIR);
 // Drive motors using built-in A-Star motor drivers
 AStar32U4Motors drive_motors;
 
+// Panning constants
+const long ENCODER_PAN_RANGE = 363;  // Rotation value for 45 deg sweep
+const long SAFETY_LIMIT = 800;       // Hard limit
+
 StepperAndSensors::StepperAndSensors() {
     loader_ready = true;
     current_lazy_susan_angle = 0.0;
+    is_panning = false;
+    pan_speed = 0;
+    pan_direction = 0;
+    pan_rotation_target = 0;
+    encoder_left = nullptr;
+    encoder_right = nullptr;
 }
 
-void StepperAndSensors::begin() {
+void StepperAndSensors::begin(Encoder* left, Encoder* right) {
+    encoder_left = left;
+    encoder_right = right;
+    
     // Setup lazy susan
     pinMode(LAZY_SUSAN_ENABLE, OUTPUT);
     digitalWrite(LAZY_SUSAN_ENABLE, LOW); // Enable (active low for DRV8825)
@@ -65,6 +78,76 @@ void StepperAndSensors::update() {
     // Update loader ready status
     if (loader.distanceToGo() == 0) {
         loader_ready = true;
+    }
+    
+    // Update panning logic if active
+    if (is_panning) {
+        updatePanning();
+    }
+}
+
+void StepperAndSensors::startPanning(int16_t speed) {
+    if (!encoder_left || !encoder_right) return;
+    
+    is_panning = true;
+    pan_speed = abs(speed);
+    
+    // Reset encoders to 0 for new panning session
+    encoder_left->write(0);
+    encoder_right->write(0);
+    
+    // Start panning LEFT initially (standard convention)
+    pan_direction = -1;
+    pan_rotation_target = -ENCODER_PAN_RANGE;
+}
+
+void StepperAndSensors::stopPanning() {
+    is_panning = false;
+    drive_motors.setM1Speed(0);
+    drive_motors.setM2Speed(0);
+}
+
+void StepperAndSensors::updatePanning() {
+    if (!encoder_left || !encoder_right) return;
+    
+    // Calculate rotation
+    long enc_right = encoder_right->read();
+    long enc_left = encoder_left->read();
+    long current_rotation = (enc_right - enc_left) / 2;
+    
+    // Safety bounds check
+    if(current_rotation > SAFETY_LIMIT && pan_direction == 1) {
+        pan_direction = -1; // Force Left
+        pan_rotation_target = -ENCODER_PAN_RANGE;
+    }
+    else if(current_rotation < -SAFETY_LIMIT && pan_direction == -1) {
+        pan_direction = 1; // Force Right
+        pan_rotation_target = ENCODER_PAN_RANGE;
+    }
+    
+    // Check limits and reverse
+    if(pan_direction < 0 && current_rotation <= pan_rotation_target) {
+        // Hit left limit, reverse to right
+        pan_direction = 1;
+        pan_rotation_target = ENCODER_PAN_RANGE;
+    } 
+    else if(pan_direction > 0 && current_rotation >= pan_rotation_target) {
+        // Hit right limit, reverse to left
+        pan_direction = -1;
+        pan_rotation_target = -ENCODER_PAN_RANGE;
+    }
+    
+    // Apply motor speed
+    // M1 = Right, M2 = Left
+    // Rotate Right (CW): M1 backward (-), M2 forward (+)
+    // Rotate Left (CCW): M1 forward (+), M2 backward (-)
+    
+    if(pan_direction > 0) {
+        drive_motors.setM1Speed(-pan_speed);
+        drive_motors.setM2Speed(pan_speed);
+    } else {
+        drive_motors.setM1Speed(pan_speed);
+        drive_motors.setM2Speed(-pan_speed);
     }
 }
 
@@ -132,6 +215,9 @@ uint16_t StepperAndSensors::readUltrasonic() {
 }
 
 void StepperAndSensors::setDrive(int16_t left_speed, int16_t right_speed) {
+    // If panning is active, ignore external drive commands to prevent conflict
+    if (is_panning) return;
+
     // Using AStar32U4Motors library
     // Library range: -400 to 400
     // Python now sends full range as 16-bit signed integers

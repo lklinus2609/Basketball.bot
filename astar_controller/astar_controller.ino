@@ -9,7 +9,7 @@
  *  - Loading mechanism stepper motor
  *  - IR sensors (TSOP34156)
  *  - Ultrasonic sensor
- *  - Encoders
+ *  - Encoders (for panning)
  *
  * Communicates with Raspberry Pi via serial
  */
@@ -18,6 +18,12 @@
 #include "communication.h"
 #include "flywheel_control.h"
 #include "stepper_and_sensors.h"
+#include <Encoder.h>
+
+// Encoders: Right wheel = A0, A1 | Left wheel = A2, A3
+// Resolution: 1440 counts per wheel revolution
+Encoder encoderRight(A0, A1);  // Right wheel encoder
+Encoder encoderLeft(A2, A3);   // Left wheel encoder
 
 // Timing
 unsigned long last_telemetry_time = 0;
@@ -37,8 +43,8 @@ void setup() {
     // Initialize flywheel controller
     flywheels.begin();
 
-    // Initialize steppers and sensors
-    steppers_sensors.begin();
+    // Initialize steppers and sensors (pass encoder references)
+    steppers_sensors.begin(&encoderLeft, &encoderRight);
 
     #if DEBUG_MODE
     comm.sendDebugMessage("A-Star ready!");
@@ -70,7 +76,7 @@ void loop() {
     // Update flywheel PID (runs at fixed rate internally)
     flywheels.update();
 
-    // Update steppers (non-blocking motion)
+    // Update steppers and sensors (includes panning logic)
     steppers_sensors.update();
 
     // ========================================================================
@@ -96,21 +102,10 @@ void handleCommand(CommandData& cmd) {
     switch (cmd.type) {
         case CMD_SET_FLYWHEEL_RPM:
             flywheels.setTargetRPM(cmd.flywheel_rpm);
-            #if DEBUG_MODE
-            // Uncomment for verbose debugging
-            // char msg[32];
-            // sprintf(msg, "RPM set: %d", cmd.flywheel_rpm);
-            // comm.sendDebugMessage(msg);
-            #endif
             break;
 
         case CMD_ROTATE_LAZY_SUSAN:
             steppers_sensors.rotateLazySusan(cmd.lazy_susan_angle);
-            #if DEBUG_MODE
-            // char msg[32];
-            // sprintf(msg, "Angle: %.1f", cmd.lazy_susan_angle);
-            // comm.sendDebugMessage(msg);
-            #endif
             break;
 
         case CMD_SHOOT:
@@ -122,10 +117,19 @@ void handleCommand(CommandData& cmd) {
 
         case CMD_SET_DRIVE:
             steppers_sensors.setDrive(cmd.drive_left, cmd.drive_right);
+            break;
+            
+        case CMD_START_PANNING:
+            steppers_sensors.startPanning(cmd.panning_speed);
             #if DEBUG_MODE
-            char msg[32];
-            sprintf(msg, "Drive: L=%d R=%d", cmd.drive_left, cmd.drive_right);
-            comm.sendDebugMessage(msg);
+            comm.sendDebugMessage("START PANNING");
+            #endif
+            break;
+            
+        case CMD_STOP_PANNING:
+            steppers_sensors.stopPanning();
+            #if DEBUG_MODE
+            comm.sendDebugMessage("STOP PANNING");
             #endif
             break;
 
@@ -133,6 +137,7 @@ void handleCommand(CommandData& cmd) {
             // Software reset
             flywheels.stop();
             steppers_sensors.rotateLazySusan(0);
+            steppers_sensors.stopPanning();
             #if DEBUG_MODE
             comm.sendDebugMessage("Reset");
             #endif
@@ -166,20 +171,4 @@ void sendTelemetry() {
 void printDebugInfo() {
     // Print periodic debug information (not sent to RPI, just for serial monitor)
     // Comment out if not needed
-
-    /*
-    Serial.print("RPM: L=");
-    Serial.print(flywheels.getRPM_Left());
-    Serial.print(" R=");
-    Serial.print(flywheels.getRPM_Right());
-    Serial.print(" | Angle=");
-    Serial.print(steppers_sensors.getLazySusanAngle());
-    Serial.print(" | Loader=");
-    Serial.print(steppers_sensors.isLoaderReady() ? "RDY" : "BUSY");
-    Serial.print(" | IR: L=");
-    Serial.print(steppers_sensors.readIR_Left());
-    Serial.print(" R=");
-    Serial.print(steppers_sensors.readIR_Right());
-    Serial.println();
-    */
 }

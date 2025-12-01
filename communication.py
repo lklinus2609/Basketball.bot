@@ -22,6 +22,8 @@ class CommandType(IntEnum):
     SET_DRIVE = 0x40
     RESET = 0x50
     GET_STATUS = 0x60
+    START_PANNING = 0x70
+    STOP_PANNING = 0x71
 
 
 class TelemetryType(IntEnum):
@@ -178,6 +180,21 @@ class AStarCommunication:
         # Arduino handles clamping to -400/+400
         data = struct.pack('<hh', int(left_speed), int(right_speed))
         return self.send_command(CommandType.SET_DRIVE, data)
+
+    def start_panning(self, speed):
+        """
+        Start encoder-based panning mode
+        
+        Args:
+            speed: Motor speed (0-400)
+        """
+        # Pack as signed 16-bit integer
+        data = struct.pack('<h', int(speed))
+        return self.send_command(CommandType.START_PANNING, data)
+
+    def stop_panning(self):
+        """Stop panning mode"""
+        return self.send_command(CommandType.STOP_PANNING)
 
     def reset(self):
         """Reset A-Star controller"""
