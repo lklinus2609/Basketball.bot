@@ -271,8 +271,9 @@ class BasketballRobotStateMachine:
         # Wait for loader to complete
         is_ready = self.comm.is_loader_ready()
 
-        # Exit when loader completes OR timeout after 1 second
-        if (is_ready and self.time_in_state() > 100) or self.time_in_state() > 1000:
+        # Exit when loader completes OR timeout
+        # With 10000 speed/accel, 800 steps takes ~0.15s. Wait 1000ms to be safe and avoid double-triggering.
+        if self.time_in_state() > 1000:
             # Shot complete!
             self.balls_remaining -= 1
             self.shots_made += 1
@@ -287,7 +288,18 @@ class BasketballRobotStateMachine:
             if self.balls_remaining > 0:
                 if DEBUG_MODE:
                     print(f"[STATE] Shot complete! {self.balls_remaining} balls remaining")
-                self.transition_to(State.HUNT_FOR_TARGET)
+                
+                # Check IR state directly
+                # If still detected, shoot again (loop back to CALCULATE/ALIGN)
+                # If not detected, resume hunting
+                if GPIO.input(IR_SENSOR_PIN) == 0: # 0 = Detected
+                    if DEBUG_MODE:
+                        print("[STATE] Target still detected! Firing again...")
+                    self.transition_to(State.CALCULATE_SHOT)
+                else:
+                    if DEBUG_MODE:
+                        print("[STATE] Target lost/cleared. Resuming hunt...")
+                    self.transition_to(State.HUNT_FOR_TARGET)
             else:
                 print(f"[STATE] All balls shot! Total shots: {self.shots_made}")
                 self.transition_to(State.END_GAME)
