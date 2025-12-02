@@ -16,14 +16,13 @@
 
 #include "config.h"
 #include "communication.h"
-#include "flywheel_control.h"
 #include "stepper_and_sensors.h"
 #include <Encoder.h>
 
 // Encoders: Right wheel = A0, A1 | Left wheel = A2, A3
 // Resolution: 1440 counts per wheel revolution
-Encoder encoderRight(A0, A1);  // Right wheel encoder
-Encoder encoderLeft(A2, A3);   // Left wheel encoder
+Encoder encoderRight(ENCODER_RIGHT_A, ENCODER_RIGHT_B);
+Encoder encoderLeft(ENCODER_LEFT_A, ENCODER_LEFT_B);
 
 // Timing
 unsigned long last_telemetry_time = 0;
@@ -39,9 +38,6 @@ void setup() {
     #if DEBUG_MODE
     comm.sendDebugMessage("A-Star initializing...");
     #endif
-
-    // Initialize flywheel controller
-    flywheels.begin();
 
     // Initialize steppers and sensors (pass encoder references)
     steppers_sensors.begin(&encoderLeft, &encoderRight);
@@ -73,9 +69,6 @@ void loop() {
     // CONTROLLER UPDATES (non-blocking)
     // ========================================================================
 
-    // Update flywheel PID (runs at fixed rate internally)
-    flywheels.update();
-
     // Update steppers and sensors (includes panning logic)
     steppers_sensors.update();
 
@@ -101,11 +94,11 @@ void loop() {
 void handleCommand(CommandData& cmd) {
     switch (cmd.type) {
         case CMD_SET_FLYWHEEL_RPM:
-            flywheels.setTargetRPM(cmd.flywheel_rpm);
+            // Flywheel controlled externally - do nothing
             break;
 
-        case CMD_ROTATE_LAZY_SUSAN:
-            steppers_sensors.rotateLazySusan(cmd.lazy_susan_angle);
+        case CMD_SET_IR_STATE:
+            steppers_sensors.setIRState(cmd.ir_state);
             break;
 
         case CMD_SHOOT:
@@ -119,24 +112,8 @@ void handleCommand(CommandData& cmd) {
             steppers_sensors.setDrive(cmd.drive_left, cmd.drive_right);
             break;
             
-        case CMD_START_PANNING:
-            steppers_sensors.startPanning(cmd.panning_speed);
-            #if DEBUG_MODE
-            comm.sendDebugMessage("START PANNING");
-            #endif
-            break;
-            
-        case CMD_STOP_PANNING:
-            steppers_sensors.stopPanning();
-            #if DEBUG_MODE
-            comm.sendDebugMessage("STOP PANNING");
-            #endif
-            break;
-
         case CMD_RESET:
             // Software reset
-            flywheels.stop();
-            steppers_sensors.rotateLazySusan(0);
             steppers_sensors.stopPanning();
             #if DEBUG_MODE
             comm.sendDebugMessage("Reset");
@@ -146,22 +123,14 @@ void handleCommand(CommandData& cmd) {
 }
 
 void sendTelemetry() {
-    // Send sensor data (only 2 IR sensors)
-    uint8_t ir_left = steppers_sensors.readIR_Left();
-    uint8_t ir_right = steppers_sensors.readIR_Right();
+    // Send sensor data (only 2 IR sensors + Ultrasonic)
+    // Note: IR sensors are now read by Pi, but we can send raw values if needed
+    // For now, sending 0s or raw reads for debug
+    uint8_t ir_left = 0; 
+    uint8_t ir_right = 0;
     uint16_t distance = steppers_sensors.readUltrasonic();
 
     comm.sendSensorData(ir_left, ir_right, distance);
-
-    // Send flywheel status
-    uint16_t rpm_left = flywheels.getRPM_Left();
-    uint16_t rpm_right = flywheels.getRPM_Right();
-
-    comm.sendFlywheelStatus(rpm_left, rpm_right);
-
-    // Send position status
-    float angle = steppers_sensors.getLazySusanAngle();
-    comm.sendPositionStatus(angle);
 
     // Send loader status
     bool loader_ready = steppers_sensors.isLoaderReady();

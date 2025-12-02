@@ -17,7 +17,7 @@ from config import (
 class CommandType(IntEnum):
     """Command types sent from RPI to A-Star"""
     SET_FLYWHEEL_RPM = 0x10
-    ROTATE_LAZY_SUSAN = 0x20
+    SET_IR_STATE = 0x20     # Was ROTATE_LAZY_SUSAN
     SHOOT = 0x30
     SET_DRIVE = 0x40
     RESET = 0x50
@@ -29,8 +29,6 @@ class CommandType(IntEnum):
 class TelemetryType(IntEnum):
     """Telemetry types received from A-Star"""
     SENSOR_DATA = 0x80
-    FLYWHEEL_STATUS = 0x81
-    POSITION_STATUS = 0x82
     LOADER_STATUS = 0x83
     DEBUG_MESSAGE = 0x8F
 
@@ -54,9 +52,6 @@ class AStarCommunication:
             'ir_center': 0,
             'ir_right': 0,
             'distance_cm': 0,
-            'flywheel_rpm_left': 0,
-            'flywheel_rpm_right': 0,
-            'lazy_susan_angle': 0.0,
             'loader_ready': True,
             'timestamp': 0
         }
@@ -143,26 +138,24 @@ class AStarCommunication:
 
     def set_flywheel_rpm(self, rpm):
         """
-        Set target RPM for both flywheels
-
-        Args:
-            rpm: Target RPM (0-10000)
+        Set target RPM for both flywheels (DISABLED IN FIRMWARE)
+        Kept for compatibility but does nothing on robot
         """
         # Pack as unsigned 16-bit integer
         data = struct.pack('<H', int(rpm))
         return self.send_command(CommandType.SET_FLYWHEEL_RPM, data)
 
-    def rotate_lazy_susan(self, angle):
+    def set_ir_state(self, is_detected):
         """
-        Rotate lazy susan to absolute angle
-
+        Send IR detection state to A-Star
+        
         Args:
-            angle: Target angle in degrees (-180 to +180)
+            is_detected: True if beacon detected, False otherwise
         """
-        # Pack as signed 16-bit integer (angle * 10 for 0.1° resolution)
-        angle_encoded = int(angle * 10)
-        data = struct.pack('<h', angle_encoded)
-        return self.send_command(CommandType.ROTATE_LAZY_SUSAN, data)
+        # 0 = Detected, 1 = Not Detected (Active Low logic)
+        state_byte = 0 if is_detected else 1
+        data = struct.pack('<B', state_byte)
+        return self.send_command(CommandType.SET_IR_STATE, data)
 
     def shoot(self):
         """Trigger shooting mechanism (90° rotation)"""
@@ -271,18 +264,6 @@ class AStarCommunication:
                     self._update_ir_filter('ir_left', self.telemetry['ir_left'])
                     self._update_ir_filter('ir_center', self.telemetry['ir_center'])
                     self._update_ir_filter('ir_right', self.telemetry['ir_right'])
-
-            elif msg_type == TelemetryType.FLYWHEEL_STATUS:
-                # Both flywheel RPMs (2x 2 bytes)
-                if len(data) >= 4:
-                    self.telemetry['flywheel_rpm_left'] = struct.unpack('<H', data[0:2])[0]
-                    self.telemetry['flywheel_rpm_right'] = struct.unpack('<H', data[2:4])[0]
-
-            elif msg_type == TelemetryType.POSITION_STATUS:
-                # Lazy susan angle (2 bytes, signed, 0.1° resolution)
-                if len(data) >= 2:
-                    angle_encoded = struct.unpack('<h', data[0:2])[0]
-                    self.telemetry['lazy_susan_angle'] = angle_encoded / 10.0
 
             elif msg_type == TelemetryType.LOADER_STATUS:
                 # Loader ready flag (1 byte)

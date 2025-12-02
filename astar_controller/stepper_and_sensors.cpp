@@ -1,5 +1,5 @@
 /**
- * Stepper motor control (Lazy Susan and Loader) and Sensor reading
+ * Stepper motor control (Loader) and Sensor reading
  * Uses AccelStepper library for smooth motion
  * Uses AStar32U4Motors for drive wheels
  */
@@ -12,7 +12,7 @@
 StepperAndSensors steppers_sensors;
 
 // AccelStepper instances
-AccelStepper lazy_susan(AccelStepper::DRIVER, LAZY_SUSAN_STEP, LAZY_SUSAN_DIR);
+// Lazy Susan removed - now rotating entire robot
 AccelStepper loader(AccelStepper::DRIVER, LOADER_STEP, LOADER_DIR);
 
 // Drive motors using built-in A-Star motor drivers
@@ -24,27 +24,20 @@ const long SAFETY_LIMIT = 800;       // Hard limit
 
 StepperAndSensors::StepperAndSensors() {
     loader_ready = true;
-    current_lazy_susan_angle = 0.0;
     is_panning = false;
     pan_speed = 0;
     pan_direction = 0;
     pan_rotation_target = 0;
     encoder_left = nullptr;
     encoder_right = nullptr;
+    stop_timestamp = 0;
+    ir_state_from_pi = 1; // Default to NOT DETECTED
 }
 
 void StepperAndSensors::begin(Encoder* left, Encoder* right) {
     encoder_left = left;
     encoder_right = right;
     
-    // Setup lazy susan
-    pinMode(LAZY_SUSAN_ENABLE, OUTPUT);
-    digitalWrite(LAZY_SUSAN_ENABLE, LOW); // Enable (active low for DRV8825)
-
-    lazy_susan.setMaxSpeed(LAZY_SUSAN_MAX_SPEED);
-    lazy_susan.setAcceleration(LAZY_SUSAN_ACCELERATION);
-    lazy_susan.setCurrentPosition(0);
-
     // Setup loader
     pinMode(LOADER_ENABLE, OUTPUT);
     digitalWrite(LOADER_ENABLE, LOW); // Enable
@@ -53,16 +46,12 @@ void StepperAndSensors::begin(Encoder* left, Encoder* right) {
     loader.setAcceleration(LOADER_ACCELERATION);
     loader.setCurrentPosition(0);
 
-    // Initialize drive motors to STOPPED (critical - set multiple times to ensure)
+    // Initialize drive motors to STOPPED
     drive_motors.setM1Speed(0);
     drive_motors.setM2Speed(0);
-    delay(10);  // Small delay to ensure motor driver receives command
+    delay(10);
     drive_motors.setM1Speed(0);
     drive_motors.setM2Speed(0);
-
-    // Setup IR sensors (only 2 sensors)
-    pinMode(IR_SENSOR_LEFT, INPUT);
-    pinMode(IR_SENSOR_RIGHT, INPUT);
 
     // Setup ultrasonic sensor
     pinMode(ULTRASONIC_TRIG, OUTPUT);
@@ -71,8 +60,7 @@ void StepperAndSensors::begin(Encoder* left, Encoder* right) {
 }
 
 void StepperAndSensors::update() {
-    // Update steppers (non-blocking)
-    lazy_susan.run();
+    // Update loader (non-blocking)
     loader.run();
 
     // Update loader ready status
@@ -99,6 +87,9 @@ void StepperAndSensors::startPanning(int16_t speed) {
     // Start panning LEFT initially (standard convention)
     pan_direction = -1;
     pan_rotation_target = -ENCODER_PAN_RANGE;
+    
+    stop_timestamp = 0;
+    ir_state_from_pi = 1; // Reset to not detected
 }
 
 void StepperAndSensors::stopPanning() {
@@ -107,13 +98,35 @@ void StepperAndSensors::stopPanning() {
     drive_motors.setM2Speed(0);
 }
 
+void StepperAndSensors::setIRState(uint8_t state) {
+    ir_state_from_pi = state;
+}
+
 void StepperAndSensors::updatePanning() {
     if (!encoder_left || !encoder_right) return;
+    
+    unsigned long current_time = millis();
     
     // Calculate rotation
     long enc_right = encoder_right->read();
     long enc_left = encoder_left->read();
     long current_rotation = (enc_right - enc_left) / 2;
+    
+    // Check IR state from Pi
+    if (ir_state_from_pi == 0) { // Beacon DETECTED
+        drive_motors.setM1Speed(0);
+        drive_motors.setM2Speed(0);
+        stop_timestamp = current_time;
+        return;
+    }
+    
+    // If NOT detected, check if we need to wait (minimum stop duration)
+    // Using 500ms as per IRscan logic
+    if (current_time - stop_timestamp < 500) {
+        drive_motors.setM1Speed(0);
+        drive_motors.setM2Speed(0);
+        return;
+    }
     
     // Safety bounds check
     if(current_rotation > SAFETY_LIMIT && pan_direction == 1) {
@@ -151,44 +164,16 @@ void StepperAndSensors::updatePanning() {
     }
 }
 
-void StepperAndSensors::rotateLazySusan(float angle_degrees) {
-    // Convert degrees to steps
-    long target_steps = (long)(angle_degrees * LAZY_SUSAN_STEPS_PER_DEG);
-
-    lazy_susan.moveTo(target_steps);
-
-    // Track current angle
-    current_lazy_susan_angle = angle_degrees;
-}
-
 void StepperAndSensors::shoot() {
     if (loader_ready) {
         // Move 90 degrees (relative move)
         loader.move(LOADER_STEPS_PER_90_DEG);
         loader_ready = false;
-
-        // After 90°, the loader automatically resets position for continuous rotation
-        // Each 90° turn shoots AND loads next ball
     }
-}
-
-float StepperAndSensors::getLazySusanAngle() {
-    // Return actual angle from step position
-    long current_steps = lazy_susan.currentPosition();
-    return current_steps / LAZY_SUSAN_STEPS_PER_DEG;
 }
 
 bool StepperAndSensors::isLoaderReady() {
     return loader_ready;
-}
-
-uint8_t StepperAndSensors::readIR_Left() {
-    // TSOP34156 is active-low: LOW = beacon detected
-    return digitalRead(IR_SENSOR_LEFT);
-}
-
-uint8_t StepperAndSensors::readIR_Right() {
-    return digitalRead(IR_SENSOR_RIGHT);
 }
 
 uint16_t StepperAndSensors::readUltrasonic() {
@@ -203,10 +188,8 @@ uint16_t StepperAndSensors::readUltrasonic() {
     unsigned long duration = pulseIn(ULTRASONIC_ECHO, HIGH, ULTRASONIC_TIMEOUT_US);
 
     // Calculate distance in cm
-    // Distance = (duration * speed_of_sound) / 2
     uint16_t distance_cm = (uint16_t)((duration * SOUND_SPEED_CM_US) / 2.0);
 
-    // Sanity check
     if (distance_cm > 200) {
         distance_cm = 200; // Cap at 2m
     }
@@ -215,18 +198,12 @@ uint16_t StepperAndSensors::readUltrasonic() {
 }
 
 void StepperAndSensors::setDrive(int16_t left_speed, int16_t right_speed) {
-    // If panning is active, ignore external drive commands to prevent conflict
+    // If panning is active, ignore external drive commands
     if (is_panning) return;
 
-    // Using AStar32U4Motors library
-    // Library range: -400 to 400
-    // Python now sends full range as 16-bit signed integers
-
-    // Clamp to motor library limits (-400 to 400)
     int16_t left_motor = constrain(left_speed, -400, 400);
     int16_t right_motor = constrain(right_speed, -400, 400);
 
-    // M1 = Right motor, M2 = Left motor (typical A-Star configuration)
     drive_motors.setM1Speed(right_motor);
     drive_motors.setM2Speed(left_motor);
 }

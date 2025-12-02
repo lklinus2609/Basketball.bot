@@ -10,7 +10,7 @@
 struct CommandData {
     uint8_t type;
     uint16_t flywheel_rpm;
-    float lazy_susan_angle;
+    uint8_t ir_state;     // 0 = Detected, 1 = Not Detected
     int16_t drive_left;   // 16-bit: supports full -400 to +400 motor range
     int16_t drive_right;  // 16-bit: supports full -400 to +400 motor range
 };
@@ -26,9 +26,8 @@ public:
     void parsePacket(CommandData& cmd);
 
     // Send telemetry (only 2 IR sensors)
+    // Send telemetry (only 2 IR sensors)
     void sendSensorData(uint8_t ir_left, uint8_t ir_right, uint16_t distance_cm);
-    void sendFlywheelStatus(uint16_t rpm_left, uint16_t rpm_right);
-    void sendPositionStatus(float angle_degrees);
     void sendLoaderStatus(bool is_ready);
     void sendDebugMessage(const char* msg);
 

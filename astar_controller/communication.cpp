@@ -56,25 +56,7 @@ void Communication::sendSensorData(uint8_t ir_left, uint8_t ir_right, uint16_t d
     sendPacket(TEL_SENSOR_DATA, data, 4);
 }
 
-void Communication::sendFlywheelStatus(uint16_t rpm_left, uint16_t rpm_right) {
-    uint8_t data[4];
-    data[0] = (uint8_t)(rpm_left & 0xFF);
-    data[1] = (uint8_t)((rpm_left >> 8) & 0xFF);
-    data[2] = (uint8_t)(rpm_right & 0xFF);
-    data[3] = (uint8_t)((rpm_right >> 8) & 0xFF);
-
-    sendPacket(TEL_FLYWHEEL_STATUS, data, 4);
-}
-
-void Communication::sendPositionStatus(float angle_degrees) {
-    // Encode angle with 0.1° resolution
-    int16_t angle_encoded = (int16_t)(angle_degrees * 10);
-
-    uint8_t data[2];
-    data[0] = (uint8_t)(angle_encoded & 0xFF);
-    data[1] = (uint8_t)((angle_encoded >> 8) & 0xFF);
-
-    sendPacket(TEL_POSITION_STATUS, data, 2);
+    sendPacket(TEL_SENSOR_DATA, data, 4);
 }
 
 void Communication::sendLoaderStatus(bool is_ready) {
@@ -154,10 +136,9 @@ void Communication::parsePacket(CommandData& cmd) {
             }
             break;
 
-        case CMD_ROTATE_LAZY_SUSAN:
-            if (data_len >= 2) {
-                int16_t angle_encoded = ((int16_t)rx_buffer[4] << 8) | rx_buffer[3];
-                cmd.lazy_susan_angle = angle_encoded / 10.0; // Decode 0.1° resolution
+        case CMD_SET_IR_STATE:
+            if (data_len >= 1) {
+                cmd.ir_state = rx_buffer[3]; // 0 = Detected, 1 = Not Detected
             }
             break;
 

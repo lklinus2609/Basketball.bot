@@ -7,14 +7,13 @@ import time
 from enum import Enum, auto
 from ballistics import ballistics
 import math
+import RPi.GPIO as GPIO
 from config import (
     CALCULATE_SHOT_TIMEOUT,
     ALIGN_SPINUP_TIMEOUT,
     STABILIZATION_TIME,
     SHOOT_DURATION,
     FLYWHEEL_IDLE_RPM,
-    IDLE_LAZY_SUSAN_ANGLE,
-    LAZY_SUSAN_ANGLE_TOLERANCE,
     FLYWHEEL_RPM_TOLERANCE,
     BALL_COUNT,
     DEBUG_MODE,
@@ -33,6 +32,8 @@ from config import (
     RETURN_TO_CENTER_AFTER_SHOT
 )
 
+# IR Sensor Pin (BCM)
+IR_SENSOR_PIN = 17
 
 class State(Enum):
     """Robot states"""
@@ -69,8 +70,7 @@ class BasketballRobotStateMachine:
         self.target_beacon = None
         self.target_distance = 0
         self.target_rpm = 0
-        self.target_angle = 0
-
+        
         # Timing tracking
         self.beacon_detected_time = 0
         self.shot_times = []
@@ -85,12 +85,13 @@ class BasketballRobotStateMachine:
         self.robot_position = None  # (x, y) position in arena
         self.robot_heading = 0.0    # Angle robot is facing (0° = facing +X direction)
 
-        # Pre-calculated shot parameters for each basket
-        self.shot_parameters = {
-            'LEFT': {'distance': 0, 'rpm': 0, 'lazy_susan_angle': 0},
-            'CENTER': {'distance': 0, 'rpm': 0, 'lazy_susan_angle': 0},
-            'RIGHT': {'distance': 0, 'rpm': 0, 'lazy_susan_angle': 0}
-        }
+        # GPIO Setup for IR Sensor
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(IR_SENSOR_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        
+        # IR Filter State (Simple hysteresis)
+        self.ir_samples = []
+        self.ir_filtered_state = 1 # 1 = Not Detected
 
         if DEBUG_MODE:
             print("[STATE] State machine initialized")
@@ -129,13 +130,11 @@ class BasketballRobotStateMachine:
         """Actions to perform when entering a state"""
         if self.state == State.INIT:
             # Initialize robot systems
-            self.comm.set_flywheel_rpm(FLYWHEEL_IDLE_RPM)
-            self.comm.rotate_lazy_susan(IDLE_LAZY_SUSAN_ANGLE)
+            self.comm.set_flywheel_rpm(FLYWHEEL_IDLE_RPM) # No-op now, but keeps protocol happy
 
         elif self.state == State.HUNT_FOR_TARGET:
-            # Return to idle position
-            self.comm.rotate_lazy_susan(IDLE_LAZY_SUSAN_ANGLE)
-            # Keep flywheels spinning at idle or last speed
+            # Start panning
+            self.comm.start_panning(75) # Speed 75
 
         elif self.state == State.CALCULATE_SHOT:
             # Mark timing for performance tracking
@@ -186,289 +185,80 @@ class BasketballRobotStateMachine:
 
     def _state_seek_and_orient(self):
         """
-        SMART Localization Strategy:
-        1. Scan 360° to get distances to all 4 walls
-        2. Calculate exact (x,y) position using triangulation
-        3. Rotate to face the "hoop side" (furthest long side)
-        4. Pre-calculate distances, RPMs, and angles for ALL 3 hoops
+        Simplified Localization:
+        Just transition to hunting for now.
+        Full localization can be re-enabled if needed.
         """
-        time_in_state = self.time_in_state()
-
-        # Phase 1: 360° Scanning (0-3.6 seconds)
-        if time_in_state < SCAN_SAMPLES * SCAN_DELAY_MS:
-            # Start scan
-            if self.scan_index == 0 and time_in_state < 100:
-                if DEBUG_MODE:
-                    print("[LOCALIZE] Starting 360° arena scan for triangulation...")
-                # Start rotating in place
-                self.comm.set_drive(-ROTATION_SPEED, ROTATION_SPEED)
-                self.scan_readings = []
-
-            # Collect distance samples
-            if time_in_state >= self.scan_index * SCAN_DELAY_MS:
-                distance = self.comm.get_distance_inches()
-
-                # Record valid distances with angle
-                if MIN_VALID_DISTANCE < distance < MAX_VALID_DISTANCE:
-                    angle = (self.scan_index / SCAN_SAMPLES) * 360.0
-                    self.scan_readings.append((angle, distance))
-
-                self.scan_index += 1
-            return
-
-        # Phase 2: Calculate Position & Pre-compute All Shot Parameters (3.6-5 seconds)
-        elif time_in_state < (SCAN_SAMPLES * SCAN_DELAY_MS + 1500):
-            # Stop rotating
-            self.comm.set_drive(0, 0)
-
-            if not self.scan_readings:
-                if DEBUG_MODE:
-                    print("[LOCALIZE] WARNING: No valid scan data!")
-                self.is_localized = True
-                self.transition_to(State.HUNT_FOR_TARGET)
-                return
-
-            # Find 4 walls (N, S, E, W) by finding peaks in each quadrant
-            walls = self._extract_four_walls(self.scan_readings)
-
-            if DEBUG_MODE:
-                print(f"[LOCALIZE] Detected walls:")
-                for direction, (angle, dist) in walls.items():
-                    print(f"  {direction}: {angle:.0f}° @ {dist:.1f}\"")
-
-            # Calculate robot position from wall distances
-            self.robot_position = self._calculate_position_from_walls(walls)
-
-            if self.robot_position:
-                x, y = self.robot_position
-                if DEBUG_MODE:
-                    print(f"[LOCALIZE] Calculated position: ({x:.1f}\", {y:.1f}\")")
-
-                # Pre-calculate shot parameters for ALL 3 hoops
-                self._precalculate_shot_parameters()
-
-            return
-
-        # Phase 3: Rotate to Face Hoop Side (5-7 seconds)
-        elif time_in_state < (SCAN_SAMPLES * SCAN_DELAY_MS + 3500):
-            # Identify "hoop side" - theoretically the furthest long side
-            # For now, assume EAST (backboard side) is the target
-            # In our coordinate system, EAST is 0 degrees (relative to robot start if facing East)
-            # But we need to find the angle to face EAST based on our scan
-            
-            # Simple logic: Face the wall that is furthest away (length of court)
-            # Assuming we start closer to the back wall (WEST)
-            
-            target_heading = 0 # Default to 0 (East)
-            
-            # Calculate rotation needed
-            # We just finished a 360 scan, so we are roughly at 360/0 degrees relative to start
-            # If we want to face East, and we assume we started facing East, we are good.
-            # But let's use the wall data if available to correct heading
-            
-            if DEBUG_MODE and time_in_state < (SCAN_SAMPLES * SCAN_DELAY_MS + 1600):
-                print(f"[LOCALIZE] Facing hoop side...")
-
-            self.is_localized = True
-            self.transition_to(State.HUNT_FOR_TARGET)
-            return
-
-        # Timeout fallback
-        else:
-            self.comm.set_drive(0, 0)
-            self.is_localized = True
-            if DEBUG_MODE:
-                print("[LOCALIZE] Timeout - proceeding anyway")
-            self.transition_to(State.HUNT_FOR_TARGET)
-
-    def _extract_four_walls(self, scan_readings):
-        """Extract 4 wall distances from 360° scan"""
-        # Divide scan into 4 quadrants and find max in each (furthest = wall)
-        quadrants = {
-            'EAST': [],   # 0-90° (backboard side with hoops)
-            'NORTH': [],  # 90-180°
-            'WEST': [],   # 180-270°
-            'SOUTH': []   # 270-360°
-        }
-
-        for angle, dist in scan_readings:
-            if 0 <= angle < 90:
-                quadrants['EAST'].append((angle, dist))
-            elif 90 <= angle < 180:
-                quadrants['NORTH'].append((angle, dist))
-            elif 180 <= angle < 270:
-                quadrants['WEST'].append((angle, dist))
-            else:
-                quadrants['SOUTH'].append((angle, dist))
-
-        walls = {}
-        for direction, readings in quadrants.items():
-            if readings:
-                # Find min distance in quadrant (closest = perpendicular to wall)
-                # We want the closest point because that represents the straight-line distance to the wall
-                walls[direction] = min(readings, key=lambda x: x[1])
-
-        return walls
-
-    def _calculate_position_from_walls(self, walls):
-        """Calculate (x, y) position from wall distances"""
-        # Arena coordinate system:
-        # (0, 0) = back-left corner (from robot's side)
-        # +X = toward hoops (backboard at x=72)
-        # +Y = toward right (left edge at y=0, right edge at y=72)
-
-        try:
-            # Extract wall distances
-            dist_east = walls.get('EAST', (0, 72))[1]   # Distance to backboard
-            dist_west = walls.get('WEST', (0, 0))[1]    # Distance to back wall
-            dist_north = walls.get('NORTH', (0, 72))[1] # Distance to left wall
-            dist_south = walls.get('SOUTH', (0, 72))[1] # Distance to right wall
-
-            # Calculate position
-            x = ARENA_LENGTH - dist_east  # How far from back wall
-            y = dist_north                # How far from left wall
-
-            # Sanity check
-            if 0 <= x <= ARENA_LENGTH and 0 <= y <= ARENA_WIDTH:
-                return (x, y)
-            else:
-                return None
-        except:
-            return None
-
-    def _precalculate_shot_parameters(self):
-        """Pre-calculate distance, RPM, and lazy susan angle for all 3 hoops"""
-        if not self.robot_position:
-            return
-
-        robot_x, robot_y = self.robot_position
-
-        for basket_name, (basket_x, basket_y) in BASKET_POSITIONS.items():
-            # Calculate Euclidean distance
-            distance = math.sqrt((basket_x - robot_x)**2 + (basket_y - robot_y)**2)
-
-            # Calculate angle to basket (relative to robot's forward direction)
-            angle_to_basket = math.degrees(math.atan2(basket_y - robot_y, basket_x - robot_x))
-
-            # Get required RPM from ballistics lookup table
-            rpm = ballistics.get_required_rpm(distance)
-
-            # Store pre-calculated parameters
-            self.shot_parameters[basket_name] = {
-                'distance': distance,
-                'rpm': rpm,
-                'lazy_susan_angle': angle_to_basket
-            }
+        # For now, skip complex localization and just start hunting
+        self.is_localized = True
+        self.transition_to(State.HUNT_FOR_TARGET)
 
     def _state_hunt_for_target(self):
         """
         PANNING MODE:
-        - Start panning (left/right) using firmware command
-        - Wait for IR beacon detection
+        - Read IR sensor on Pi
+        - Send IR state to Arduino (Arduino handles stopping)
+        - Wait for Arduino to report stopped/detected
         """
-        # Start panning if just entered state
-        if self.time_in_state() < 100:
-            if DEBUG_MODE:
-                print("[STATE] Starting PANNING mode...")
-            # Use PAN_SPEED from config (need to import or define)
-            # Assuming 75 as per IRscan.py
-            self.comm.start_panning(75) 
-
-        # Check for active beacon
-        active_beacon = self.comm.get_active_beacon()
-
-        if active_beacon is not None:
-            self.target_beacon = active_beacon
-            if DEBUG_MODE:
-                print(f"[STATE] Beacon detected: {active_beacon}")
+        # Read IR Sensor
+        ir_val = GPIO.input(IR_SENSOR_PIN)
+        
+        # Update filter (simple window)
+        self.ir_samples.append(ir_val)
+        if len(self.ir_samples) > 20:
+            self.ir_samples.pop(0)
             
-            # Stop panning immediately
-            self.comm.stop_panning()
+        zeros = self.ir_samples.count(0)
+        
+        # Hysteresis Logic (Same as IRscan.py)
+        if self.ir_filtered_state == 1: # Not Detected
+            if zeros >= 4: # 20%
+                self.ir_filtered_state = 0 # Detected
+        else: # Detected
+            if zeros < 2: # 10%
+                self.ir_filtered_state = 1 # Not Detected
+                
+        # Send state to Arduino
+        self.comm.set_ir_state(self.ir_filtered_state == 0)
+        
+        # Check if we have found a target (Filtered state is DETECTED)
+        if self.ir_filtered_state == 0:
+            # We are detected. Wait a moment to ensure stability?
+            # Actually, we should transition to CALCULATE_SHOT
+            # But we need to make sure the robot has actually STOPPED.
+            # The Arduino stops motors immediately upon receiving IR state 0.
             
+            if DEBUG_MODE and self.time_in_state() % 500 < 20: # Log occasionally
+                print(f"[STATE] IR DETECTED! Handing off to shot calc...")
+                
+            self.target_beacon = "CENTER" # Assume center for now, or use multi-sensor logic if we had 3 sensors
             self.transition_to(State.CALCULATE_SHOT)
 
     def _state_calculate_shot(self):
-        """INSTANT shot parameter lookup - already pre-calculated!"""
+        """Calculate shot parameters"""
+        # Just get distance and set RPM (though RPM is external now)
+        self.target_distance = self.comm.get_distance_inches()
+        
+        # We don't control RPM anymore, but we can calculate it for logging
+        self.target_rpm = ballistics.get_required_rpm(self.target_distance)
 
-        # Look up pre-calculated parameters for this basket
-        if self.target_beacon in self.shot_parameters:
-            params = self.shot_parameters[self.target_beacon]
-
-            self.target_distance = params['distance']
-            self.target_rpm = params['rpm']
-            self.target_angle = params['lazy_susan_angle']
-
-            if DEBUG_MODE:
-                print(f"[STATE] Target: {self.target_beacon} (PRE-CALCULATED)")
-                print(f"  Distance: {self.target_distance:.1f}\"")
-                print(f"  RPM: {self.target_rpm}")
-                print(f"  Lazy Susan: {self.target_angle:.1f}°")
-
-        else:
-            # Fallback if pre-calculation failed
-            if DEBUG_MODE:
-                print(f"[STATE] WARNING: No pre-calculated params for {self.target_beacon}, using fallback")
-
-            self.target_distance = self.comm.get_distance_inches()
-            self.target_rpm = ballistics.get_required_rpm(self.target_distance)
-            self.target_angle = ballistics.get_lazy_susan_angle(self.target_beacon)
-
-        # Send commands (non-blocking, executed in parallel)
-        self.comm.set_flywheel_rpm(self.target_rpm)
-        self.comm.rotate_lazy_susan(self.target_angle)
-
-        # Immediately transition (don't wait)
+        if DEBUG_MODE:
+            print(f"[STATE] Target Distance: {self.target_distance:.1f}\"")
+            
+        # Immediately transition
         self.transition_to(State.ALIGN_AND_SPINUP)
 
     def _state_align_and_spinup(self):
-        """Wait for lazy susan and flywheels to reach target"""
-        # Check current status
-        is_aligned = self.comm.is_aligned(
-            self.target_angle,
-            LAZY_SUSAN_ANGLE_TOLERANCE
-        )
-
-        is_rpm_ready = self.comm.is_flywheel_ready(
-            self.target_rpm,
-            FLYWHEEL_RPM_TOLERANCE
-        )
-
-        # PREDICTIVE SHOOTING: Check if conditions are "good enough"
-        if is_aligned and is_rpm_ready:
-            # Start stability timer
-            if self.stable_start_time is None:
-                self.stable_start_time = time.time()
-
-            # Check if stable for required duration
-            stable_duration = (time.time() - self.stable_start_time) * 1000
-
-            # Shoot EARLY by PREDICTIVE_SHOOT_ADVANCE ms
-            if stable_duration >= (STABILIZATION_TIME - PREDICTIVE_SHOOT_ADVANCE):
-                if DEBUG_MODE:
-                    print(f"[STATE] Ready to shoot (stable for {stable_duration:.0f}ms)")
-                self.transition_to(State.EXECUTE_SHOT)
-        else:
-            # Reset stability timer if conditions not met
-            self.stable_start_time = None
-
-        # Safety timeout: shoot anyway if taking too long
-        if self.time_in_state() > ALIGN_SPINUP_TIMEOUT:
-            current_angle = self.comm.telemetry['lazy_susan_angle']
-            current_rpm = (self.comm.telemetry['flywheel_rpm_left'] +
-                           self.comm.telemetry['flywheel_rpm_right']) / 2
-
-            angle_error = abs(current_angle - self.target_angle)
-            rpm_error = abs(current_rpm - self.target_rpm)
-
-            print(f"[STATE] WARNING: Timeout shoot! "
-                  f"Angle error: {angle_error:.1f}°, "
-                  f"RPM error: {rpm_error:.0f}")
-
-            self.transition_to(State.EXECUTE_SHOT)
+        """Wait for stability before shooting"""
+        # Since we are already stopped (IR detected), we just need to wait a moment
+        # to ensure the robot is stable and not wobbling.
+        
+        if self.time_in_state() > STABILIZATION_TIME:
+             self.transition_to(State.EXECUTE_SHOT)
 
     def _state_execute_shot(self):
         """Execute the shot and wait for completion"""
-        # Trigger shot on first update cycle (loader should be ready from previous shot)
+        # Trigger shot on first update cycle
         if self.time_in_state() < 50:
             if self.comm.is_loader_ready():
                 self.comm.shoot()
@@ -478,7 +268,7 @@ class BasketballRobotStateMachine:
                 if DEBUG_MODE:
                     print(f"[STATE] WARNING: Loader not ready when entering EXECUTE_SHOT!")
 
-        # Wait for loader to complete (check if ready again after shooting)
+        # Wait for loader to complete
         is_ready = self.comm.is_loader_ready()
 
         # Exit when loader completes OR timeout after 1 second
@@ -491,16 +281,7 @@ class BasketballRobotStateMachine:
             if LOG_SHOT_TIMING and self.beacon_detected_time > 0:
                 shot_duration = int((time.time() - self.beacon_detected_time) * 1000)
                 self.shot_times.append(shot_duration)
-
-                avg_time = sum(self.shot_times) / len(self.shot_times)
-                print(f"[TIMING] Shot #{self.shots_made}: {shot_duration}ms | "
-                      f"Avg: {avg_time:.0f}ms | Target: 1000ms")
-
-            # Return to center position after shot for consistent ready state
-            if RETURN_TO_CENTER_AFTER_SHOT:
-                if DEBUG_MODE:
-                    print(f"[STATE] Returning lazy susan to center (0°)...")
-                self.comm.rotate_lazy_susan(0.0)
+                print(f"[TIMING] Shot #{self.shots_made}: {shot_duration}ms")
 
             # Check if more balls remaining
             if self.balls_remaining > 0:
@@ -512,11 +293,10 @@ class BasketballRobotStateMachine:
                 self.transition_to(State.END_GAME)
 
     def _state_end_game(self):
-        """Game over - spin down and stop"""
+        """Game over - stop"""
         if self.time_in_state() < 100:  # Only do this once
-            self.comm.set_flywheel_rpm(0)  # Spin down
-            self.comm.set_drive(0, 0)      # Stop driving
             self.comm.stop_panning()       # Ensure panning is stopped
+            self.comm.set_drive(0, 0)      # Stop driving
 
             # Print final stats
             game_duration = time.time() - self.game_start_time
@@ -526,17 +306,6 @@ class BasketballRobotStateMachine:
             print(f"Shots made: {self.shots_made}")
             print(f"Balls remaining: {self.balls_remaining}")
             print(f"Game duration: {game_duration:.1f}s")
-
-            if self.shot_times:
-                avg_shot_time = sum(self.shot_times) / len(self.shot_times)
-                min_shot_time = min(self.shot_times)
-                max_shot_time = max(self.shot_times)
-
-                print(f"\nShot timing stats:")
-                print(f"  Average: {avg_shot_time:.0f}ms")
-                print(f"  Fastest: {min_shot_time}ms")
-                print(f"  Slowest: {max_shot_time}ms")
-
             print("="*60 + "\n")
 
     # ========================================================================
@@ -554,6 +323,6 @@ class BasketballRobotStateMachine:
     def emergency_stop(self):
         """Emergency stop - halt all motion"""
         print("[STATE] EMERGENCY STOP!")
-        self.comm.set_flywheel_rpm(0)
+        self.comm.stop_panning()
         self.comm.set_drive(0, 0)
         self.transition_to(State.END_GAME)

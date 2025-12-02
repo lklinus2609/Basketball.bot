@@ -14,17 +14,14 @@ public:
     void begin(Encoder* left, Encoder* right);
     void update();
 
-    // Lazy susan control
-    void rotateLazySusan(float angle_degrees);
-    float getLazySusanAngle();
-
     // Loader control
     void shoot();
     bool isLoaderReady();
 
-    // Sensor reading (only 2 IR sensors)
-    uint8_t readIR_Left();
-    uint8_t readIR_Right();
+    // IR State from Pi
+    void setIRState(uint8_t state);
+
+    // Ultrasonic sensor
     uint16_t readUltrasonic();
 
     // Drive wheel control (supports full -400 to +400 motor range)
@@ -36,13 +33,16 @@ public:
 
 private:
     bool loader_ready;
-    float current_lazy_susan_angle;
     
     // Panning state
     bool is_panning;
     int16_t pan_speed;
     int8_t pan_direction; // 1 = right, -1 = left
     long pan_rotation_target;
+    
+    // IR Logic
+    uint8_t ir_state_from_pi;
+    unsigned long stop_timestamp;
     
     // Encoder references
     Encoder* encoder_left;

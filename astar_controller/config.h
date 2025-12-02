@@ -19,30 +19,27 @@
 #define FLYWHEEL_RIGHT_IN1      10  // Direction pin 1
 #define FLYWHEEL_RIGHT_IN2      11  // Direction pin 2
 
-// Flywheel Encoders (interrupt pins)
-#define ENCODER_LEFT_A          2   // INT0
-#define ENCODER_LEFT_B          4
+// Flywheel Encoders (Moved to Analog pins as per IRscan)
+// Note: A-Star 32U4 supports PCINT on these pins if needed, 
+// but standard Encoder library works with polling/interrupts
+#define ENCODER_RIGHT_A         A0
+#define ENCODER_RIGHT_B         A1
+#define ENCODER_LEFT_A          A2
+#define ENCODER_LEFT_B          A3
 
-#define ENCODER_RIGHT_A         3   // INT1
-#define ENCODER_RIGHT_B          8
+// DRV8825 Loading Mechanism Stepper (Updated)
+#define LOADER_STEP             A4
+#define LOADER_DIR              A5
+#define LOADER_ENABLE           12  // Moved to digital pin 12 (was A5)
 
-// DRV8825 Lazy Susan Stepper
-#define LAZY_SUSAN_STEP         A0
-#define LAZY_SUSAN_DIR          A1
-#define LAZY_SUSAN_ENABLE       A2
-
-// DRV8825 Loading Mechanism Stepper
-#define LOADER_STEP             A3
-#define LOADER_DIR              A4
-#define LOADER_ENABLE           A5
-
-// IR Sensors (TSOP34156 - active low) - Only 2 sensors
+// IR Sensors (TSOP34156) - Now read by Raspberry Pi
+// These definitions are kept for legacy/debug but not used for control
 #define IR_SENSOR_LEFT          17
 #define IR_SENSOR_RIGHT         18
 
-// Ultrasonic Sensor (HC-SR04 or similar)
-#define ULTRASONIC_TRIG         9
-#define ULTRASONIC_ECHO         8
+// Ultrasonic Sensor (Moved to resolve conflict with Flywheel on 9)
+#define ULTRASONIC_TRIG         4   // Was 9 (Conflict), Now 4 (Free)
+#define ULTRASONIC_ECHO         8   // Was 8 (Conflict with old Encoder), Now 8 (Free)
 
 // Drive Wheels - Using AStar32U4Motors library (built-in motor drivers)
 // M1 = Right motor, M2 = Left motor
@@ -78,16 +75,15 @@
 #define STEPS_PER_REV           200
 
 // Microstepping settings (set DRV8825 jumpers accordingly!)
-#define LAZY_SUSAN_MICROSTEPS   8       // 1/8 microstepping
+// Microstepping settings (set DRV8825 jumpers accordingly!)
 #define LOADER_MICROSTEPS       16      // 1/16 microstepping
 
 // Calculated steps per degree
-#define LAZY_SUSAN_STEPS_PER_DEG  ((STEPS_PER_REV * LAZY_SUSAN_MICROSTEPS) / 360.0)
 #define LOADER_STEPS_PER_90_DEG   ((STEPS_PER_REV * LOADER_MICROSTEPS) / 4)
 
-// Lazy Susan motion parameters
-#define LAZY_SUSAN_MAX_SPEED    800     // steps/second
-#define LAZY_SUSAN_ACCELERATION 2000    // steps/s²
+// Loader motion parameters (fast for shooting)
+#define LOADER_MAX_SPEED        1000    // steps/second
+#define LOADER_ACCELERATION     3000    // steps/s²
 
 // Loader motion parameters (fast for shooting)
 #define LOADER_MAX_SPEED        1000    // steps/second
@@ -117,7 +113,7 @@
 
 // Command types (must match Python code!)
 #define CMD_SET_FLYWHEEL_RPM    0x10
-#define CMD_ROTATE_LAZY_SUSAN   0x20
+#define CMD_SET_IR_STATE        0x20    // Was CMD_ROTATE_LAZY_SUSAN
 #define CMD_SHOOT               0x30
 #define CMD_SET_DRIVE           0x40
 #define CMD_RESET               0x50
