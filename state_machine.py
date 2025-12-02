@@ -133,6 +133,11 @@ class BasketballRobotStateMachine:
             self.comm.set_flywheel_rpm(FLYWHEEL_IDLE_RPM) # No-op now, but keeps protocol happy
 
         elif self.state == State.HUNT_FOR_TARGET:
+            # Reset IR filter to prevent stale data from triggering immediate detection
+            # Fill with 1s (Not Detected)
+            self.ir_samples = [1] * 20
+            self.ir_filtered_state = 1 # Not Detected
+            
             # Start panning
             self.comm.start_panning(75) # Speed 75
 
