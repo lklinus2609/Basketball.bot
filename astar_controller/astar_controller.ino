@@ -69,8 +69,8 @@ void setup() {
     encoderLeft.write(0);
 
     // Loader
-    pinMode(LOADER_ENABLE_PIN, OUTPUT);
-    digitalWrite(LOADER_ENABLE_PIN, LOW); // Enable
+    // pinMode(LOADER_ENABLE_PIN, OUTPUT);
+    // digitalWrite(LOADER_ENABLE_PIN, LOW); // Enable
     loader.setMaxSpeed(10000);
     loader.setAcceleration(5000);
 
