@@ -278,7 +278,7 @@ class BasketballRobotStateMachine:
 
         # Exit when loader completes OR timeout
         # With 10000 speed/accel, 800 steps takes ~0.15s. Wait 1000ms to be safe and avoid double-triggering.
-        if self.time_in_state() > 1000:
+        if self.time_in_state() > 5000:
             # Shot complete!
             self.balls_remaining -= 1
             self.shots_made += 1

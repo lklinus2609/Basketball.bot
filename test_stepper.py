@@ -10,7 +10,7 @@ import sys
 from communication import AStarCommunication
 
 # Configuration
-STEP_INTERVAL = 0.5  # Seconds between shots (adjust as needed)
+STEP_INTERVAL = 5.0  # Seconds between shots (adjust as needed)
 
 def signal_handler(sig, frame):
     print("\nStopping...")

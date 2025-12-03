@@ -19,7 +19,7 @@ TELEMETRY_UPDATE_RATE = 20      # 50 Hz from A-Star
 # State timeouts for 1-second shot cycle
 CALCULATE_SHOT_TIMEOUT = 50     # Quick calculation phase
 ALIGN_SPINUP_TIMEOUT = 600      # Max wait for alignment + flywheel
-STABILIZATION_TIME = 100        # How long to hold stable before shooting
+STABILIZATION_TIME = 500        # How long to hold stable before shooting
 SHOOT_DURATION = 350            # Loading mechanism rotation time
 
 # Predictive shooting: shoot this many ms BEFORE perfect alignment

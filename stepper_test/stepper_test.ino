@@ -25,7 +25,7 @@ void setup() {
 
 void loop() {
     if (loader.distanceToGo() == 0) {
-        delay(500); // Wait 0.5s
+        delay(5000); // Wait 5s
         Serial.println("Moving 800 steps...");
         loader.move(800); // Move 90 degrees (assuming 1/16 microstepping)
     }
