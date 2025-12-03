@@ -19,8 +19,8 @@ void setup() {
     // digitalWrite(ENABLE_PIN, LOW); // LOW = Enabled
 
     // Configure Stepper
-    loader.setMaxSpeed(1000);
-    loader.setAcceleration(500); // Using the 5000 value we set earlier
+    loader.setMaxSpeed(10000);
+    loader.setAcceleration(5000); // Using the 5000 value we set earlier
 }
 
 void loop() {
